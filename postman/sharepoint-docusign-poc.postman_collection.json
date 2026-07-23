@@ -1,0 +1,132 @@
+{
+  "info": {
+    "name": "sharepoint-docusign-poc",
+    "description": "PO -> SharePoint documents -> DocuSign envelope technical POC. Import this collection and set the `baseUrl` variable (default http://localhost:8080).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Create PO Envelope - success (mock mode sample)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "metadata",
+              "value": "{\n  \"poNumber\": \"4500000105\",\n  \"revision\": \"02\",\n  \"vendorName\": \"Dummy Vendor SRL\",\n  \"vendorEmail\": \"test@example.com\"\n}",
+              "contentType": "application/json",
+              "type": "text"
+            },
+            {
+              "key": "purchaseOrderDocument",
+              "type": "file",
+              "src": "sample-files/Purchase-Order-4500000105.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/po-envelopes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "po-envelopes"]
+        },
+        "description": "Expects mock mode (SPRING_PROFILES_ACTIVE=mock) and the bundled sample PDFs. Returns success=true with a mock-envelope-* id."
+      },
+      "response": []
+    },
+    {
+      "name": "Create PO Envelope - unknown PO (SHAREPOINT_FOLDER_NOT_FOUND)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "metadata",
+              "value": "{\n  \"poNumber\": \"0000000000\",\n  \"revision\": \"01\",\n  \"vendorName\": \"Dummy Vendor SRL\",\n  \"vendorEmail\": \"test@example.com\"\n}",
+              "contentType": "application/json",
+              "type": "text"
+            },
+            {
+              "key": "purchaseOrderDocument",
+              "type": "file",
+              "src": "sample-files/Purchase-Order-4500000105.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/po-envelopes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "po-envelopes"]
+        },
+        "description": "No SharePoint folder exists for this PO/revision - expect HTTP 404 with errorCode=SHAREPOINT_FOLDER_NOT_FOUND."
+      },
+      "response": []
+    },
+    {
+      "name": "Create PO Envelope - invalid PO number format (INVALID_REQUEST)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "metadata",
+              "value": "{\n  \"poNumber\": \"invalid/po\",\n  \"revision\": \"02\",\n  \"vendorName\": \"Dummy Vendor SRL\",\n  \"vendorEmail\": \"test@example.com\"\n}",
+              "contentType": "application/json",
+              "type": "text"
+            },
+            {
+              "key": "purchaseOrderDocument",
+              "type": "file",
+              "src": "sample-files/Purchase-Order-4500000105.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/po-envelopes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "po-envelopes"]
+        },
+        "description": "poNumber contains a '/' - expect HTTP 400 with errorCode=INVALID_REQUEST."
+      },
+      "response": []
+    },
+    {
+      "name": "Create PO Envelope - non-PDF main document (INVALID_PDF)",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "metadata",
+              "value": "{\n  \"poNumber\": \"4500000105\",\n  \"revision\": \"02\",\n  \"vendorName\": \"Dummy Vendor SRL\",\n  \"vendorEmail\": \"test@example.com\"\n}",
+              "contentType": "application/json",
+              "type": "text"
+            },
+            {
+              "key": "purchaseOrderDocument",
+              "type": "file",
+              "src": "README.md"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/po-envelopes",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "po-envelopes"]
+        },
+        "description": "Uploads a non-PDF file - expect HTTP 400 with errorCode=INVALID_PDF."
+      },
+      "response": []
+    }
+  ]
+}

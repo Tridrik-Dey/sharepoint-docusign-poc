@@ -1,0 +1,25 @@
+services:
+  sharepoint-docusign-poc:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      # Default to mock mode so `docker compose up` works with zero setup.
+      # Switch to "local" and uncomment the block below for real integrations.
+      SPRING_PROFILES_ACTIVE: mock
+
+      # MICROSOFT_TENANT_ID: ${MICROSOFT_TENANT_ID}
+      # MICROSOFT_CLIENT_ID: ${MICROSOFT_CLIENT_ID}
+      # MICROSOFT_CLIENT_SECRET: ${MICROSOFT_CLIENT_SECRET}
+      # SHAREPOINT_HOSTNAME: ${SHAREPOINT_HOSTNAME}
+      # SHAREPOINT_SITE_PATH: ${SHAREPOINT_SITE_PATH}
+      # SHAREPOINT_DRIVE_ID: ${SHAREPOINT_DRIVE_ID}
+      # DOCUSIGN_INTEGRATION_KEY: ${DOCUSIGN_INTEGRATION_KEY}
+      # DOCUSIGN_USER_ID: ${DOCUSIGN_USER_ID}
+      # DOCUSIGN_ACCOUNT_ID: ${DOCUSIGN_ACCOUNT_ID}
+      # DOCUSIGN_PRIVATE_KEY_PATH: /run/secrets/docusign_private_key
+      # DOCUSIGN_BASE_PATH: ${DOCUSIGN_BASE_PATH}
+      # DOCUSIGN_OAUTH_BASE_PATH: ${DOCUSIGN_OAUTH_BASE_PATH}
+      # DOCUSIGN_SEND_ENVELOPE: ${DOCUSIGN_SEND_ENVELOPE:-true}
+    # volumes:
+    #   - ./docusign_private_key.pem:/run/secrets/docusign_private_key:ro

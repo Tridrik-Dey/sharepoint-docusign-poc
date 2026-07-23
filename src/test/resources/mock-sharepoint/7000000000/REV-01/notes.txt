@@ -1,0 +1,1 @@
+This is a non-PDF file and must be ignored by SharePoint document retrieval.

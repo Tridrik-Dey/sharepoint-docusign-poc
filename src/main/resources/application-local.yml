@@ -1,0 +1,14 @@
+# Profile used to run against REAL Microsoft Graph SharePoint retrieval and
+# REAL DocuSign (demo/sandbox). All secrets come from environment variables -
+# see .env.example. Microsoft Graph connect/read/response timeouts can be
+# overridden via MICROSOFT_GRAPH_CONNECT_TIMEOUT_MS / _READ_TIMEOUT_MS /
+# _RESPONSE_TIMEOUT_MS if the defaults in application.yml don't fit your
+# network conditions.
+logging:
+  level:
+    root: INFO
+    com.example.sharepointdocusign: DEBUG
+
+app:
+  docusign:
+    send-envelope: ${DOCUSIGN_SEND_ENVELOPE:true}

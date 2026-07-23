@@ -1,0 +1,17 @@
+# Profile: real Microsoft Graph authentication + real SharePoint folder
+# listing/PDF download, paired with MockDocusignEnvelopeService instead of
+# real DocuSign. Use this to validate the Phase 2 SharePoint integration on
+# Windows (or anywhere) without needing a DocuSign sandbox account or private
+# key - no DOCUSIGN_* environment variables are required in this profile.
+#
+# Real SharePoint access still requires MICROSOFT_TENANT_ID,
+# MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, SHAREPOINT_HOSTNAME,
+# SHAREPOINT_SITE_PATH and SHAREPOINT_DRIVE_ID - see .env.example and
+# README section 9.
+server:
+  port: ${SERVER_PORT:8081}
+
+logging:
+  level:
+    root: INFO
+    com.example.sharepointdocusign: DEBUG

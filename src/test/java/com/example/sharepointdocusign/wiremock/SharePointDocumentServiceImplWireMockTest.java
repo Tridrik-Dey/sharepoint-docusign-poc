@@ -1,0 +1,155 @@
+package com.example.sharepointdocusign.wiremock;
+
+import com.example.sharepointdocusign.client.MicrosoftGraphClient;
+import com.example.sharepointdocusign.config.MicrosoftGraphProperties;
+import com.example.sharepointdocusign.exception.EmptySharePointFolderException;
+import com.example.sharepointdocusign.model.SharePointDocument;
+import com.example.sharepointdocusign.service.MicrosoftTokenService;
+import com.example.sharepointdocusign.service.SharePointDocumentServiceImpl;
+import com.github.tomakehurst.wiremock.WireMockServer;
+import com.github.tomakehurst.wiremock.client.WireMock;
+import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import io.netty.channel.ChannelOption;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.client.reactive.ReactorClientHttpConnector;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.netty.http.client.HttpClient;
+
+import java.security.MessageDigest;
+import java.time.Duration;
+import java.util.HexFormat;
+import java.util.List;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * End-to-end test of the real (non-mock) SharePoint retrieval chain - the
+ * actual MicrosoftTokenService, MicrosoftGraphClient and
+ * SharePointDocumentServiceImpl all cooperating against one WireMock server
+ * standing in for both the Microsoft identity platform and Microsoft Graph.
+ * Focuses on the two scenarios that are only meaningful at this combined
+ * level: PDF eligibility filtering and empty-folder detection.
+ */
+class SharePointDocumentServiceImplWireMockTest {
+
+    private WireMockServer wireMockServer;
+    private SharePointDocumentServiceImpl service;
+
+    @BeforeEach
+    void setUp() {
+        wireMockServer = new WireMockServer(WireMockConfiguration.wireMockConfig().dynamicPort());
+        wireMockServer.start();
+        WireMock.configureFor("localhost", wireMockServer.port());
+
+        String baseUrl = "http://localhost:" + wireMockServer.port();
+        MicrosoftGraphProperties properties = new MicrosoftGraphProperties(
+                "test-tenant", "test-client", "test-secret",
+                "test.sharepoint.com", "/sites/Test", "test-drive-id",
+                baseUrl, baseUrl + "/test-tenant/oauth2/v2.0/token",
+                "PO-Documents", 5000, 10000, 15000);
+
+        stubFor(post(urlPathEqualTo("/test-tenant/oauth2/v2.0/token"))
+                .willReturn(okJson("""
+                        {"access_token":"fake-graph-token","token_type":"Bearer","expires_in":3600}
+                        """)));
+
+        WebClient identityWebClient = plainWebClient(baseUrl);
+        MicrosoftTokenService tokenService = new MicrosoftTokenService(identityWebClient, properties);
+
+        WebClient graphWebClient = plainWebClient(baseUrl);
+        MicrosoftGraphClient graphClient = new MicrosoftGraphClient(graphWebClient, tokenService, properties);
+
+        service = new SharePointDocumentServiceImpl(graphClient);
+    }
+
+    @AfterEach
+    void tearDown() {
+        wireMockServer.stop();
+    }
+
+    private WebClient plainWebClient(String baseUrl) {
+        HttpClient httpClient = HttpClient.create()
+                .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 5000)
+                .responseTimeout(Duration.ofSeconds(5))
+                .followRedirect(true);
+        return WebClient.builder()
+                .baseUrl(baseUrl)
+                .clientConnector(new ReactorClientHttpConnector(httpClient))
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(50 * 1024 * 1024))
+                .build();
+    }
+
+    @Test
+    void filtersToOnlyEligiblePdfsAndPreservesChecksumEndToEnd() throws Exception {
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02:/children"))
+                .willReturn(okJson("""
+                        {
+                          "value": [
+                            {"id": "folder-1", "name": "SubFolder", "folder": {"childCount": 0}},
+                            {"id": "id-notes", "name": "notes.txt", "size": 10, "file": {"mimeType": "text/plain"}},
+                            {"id": "id-tmp", "name": "~$Doc-A.pdf", "size": 10, "file": {"mimeType": "application/pdf"}},
+                            {"id": "id-b", "name": "Doc-B.pdf", "size": 14, "file": {"mimeType": "application/pdf"}},
+                            {"id": "id-a", "name": "Doc-A.pdf", "size": 14, "file": {"mimeType": "application/pdf"}}
+                          ]
+                        }
+                        """)));
+
+        byte[] docAContent = "%PDF-1.4\n%%EOF".getBytes();
+        byte[] docBContent = "%PDF-1.4\nfile-b\n%%EOF".getBytes();
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-a/content"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/pdf").withBody(docAContent)));
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-b/content"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/pdf").withBody(docBContent)));
+
+        List<SharePointDocument> documents = service.fetchDocuments("4500000105", "02");
+
+        assertThat(documents).extracting(SharePointDocument::fileName).containsExactly("Doc-A.pdf", "Doc-B.pdf");
+        assertThat(documents.get(0).itemId()).isEqualTo("id-a");
+        assertThat(documents.get(0).content()).isEqualTo(docAContent);
+        assertThat(documents.get(0).size()).isEqualTo(docAContent.length);
+        assertThat(documents.get(0).sha256()).isEqualTo(sha256Hex(docAContent));
+        assertThat(documents.get(1).sha256()).isEqualTo(sha256Hex(docBContent));
+    }
+
+    @Test
+    void throwsEmptyFolderWhenGraphReturnsNoChildrenAtAll() {
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02:/children"))
+                .willReturn(okJson("""
+                        { "value": [] }
+                        """)));
+
+        assertThatThrownBy(() -> service.fetchDocuments("4500000105", "02"))
+                .isInstanceOf(EmptySharePointFolderException.class);
+    }
+
+    @Test
+    void throwsEmptyFolderWhenOnlyIneligibleFilesArePresent() {
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02:/children"))
+                .willReturn(okJson("""
+                        {
+                          "value": [
+                            {"id": "folder-1", "name": "SubFolder", "folder": {"childCount": 0}},
+                            {"id": "id-notes", "name": "notes.txt", "size": 10, "file": {"mimeType": "text/plain"}},
+                            {"id": "id-tmp", "name": "~$Doc-A.pdf", "size": 10, "file": {"mimeType": "application/pdf"}}
+                          ]
+                        }
+                        """)));
+
+        assertThatThrownBy(() -> service.fetchDocuments("4500000105", "02"))
+                .isInstanceOf(EmptySharePointFolderException.class);
+    }
+
+    private String sha256Hex(byte[] content) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
+    }
+}

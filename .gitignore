@@ -1,0 +1,25 @@
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets - never commit real credentials
+.env
+*.pem
+*.key
+# ...except the test-only RSA key fixtures used by the DocuSign WireMock tests
+!src/test/resources/*.pem
+
+# Logs
+*.log

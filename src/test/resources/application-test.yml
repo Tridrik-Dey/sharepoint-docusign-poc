@@ -1,0 +1,28 @@
+app:
+  docusign:
+    send-envelope: true
+  documents:
+    max-main-document-size-mb: 10
+    max-sharepoint-document-size-mb: 10
+    max-total-envelope-size-mb: 25
+    max-supporting-documents: 20
+  mock:
+    sharepoint-root: classpath:mock-sharepoint
+
+microsoft-graph:
+  tenant-id: test-tenant
+  client-id: test-client
+  client-secret: test-secret
+  sharepoint-hostname: test.sharepoint.com
+  sharepoint-site-path: /sites/Test
+  sharepoint-drive-id: test-drive-id
+  graph-base-url: http://localhost:${wiremock.server.port:9999}
+  documents-root-folder: PO-Documents
+
+docusign:
+  integration-key: test-integration-key
+  user-id: test-user-id
+  account-id: test-account-id
+  private-key-path: classpath:test-private-key.pem
+  base-path: http://localhost:${wiremock.server.port:9999}/restapi
+  oauth-base-path: http://localhost:${wiremock.server.port:9999}

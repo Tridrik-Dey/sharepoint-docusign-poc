@@ -1,0 +1,54 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: sharepoint-docusign-poc
+  servlet:
+    multipart:
+      max-file-size: 30MB
+      max-request-size: 30MB
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+logging:
+  level:
+    root: INFO
+    com.example.sharepointdocusign: INFO
+
+app:
+  docusign:
+    send-envelope: ${DOCUSIGN_SEND_ENVELOPE:true}
+  documents:
+    max-main-document-size-mb: 10
+    max-sharepoint-document-size-mb: 10
+    max-total-envelope-size-mb: 25
+    max-supporting-documents: 20
+
+microsoft-graph:
+  tenant-id: ${MICROSOFT_TENANT_ID:}
+  client-id: ${MICROSOFT_CLIENT_ID:}
+  client-secret: ${MICROSOFT_CLIENT_SECRET:}
+  sharepoint-hostname: ${SHAREPOINT_HOSTNAME:}
+  sharepoint-site-path: ${SHAREPOINT_SITE_PATH:}
+  sharepoint-drive-id: ${SHAREPOINT_DRIVE_ID:}
+  graph-base-url: ${MICROSOFT_GRAPH_BASE_URL:https://graph.microsoft.com}
+  token-url: https://login.microsoftonline.com/${microsoft-graph.tenant-id}/oauth2/v2.0/token
+  documents-root-folder: ${SHAREPOINT_DOCUMENTS_ROOT:PO-Documents}
+  # Connect: time to establish the TCP connection. Read: time allowed between
+  # bytes once a response has started (e.g. large SharePoint file downloads).
+  # Response: total time allowed for the full request/response exchange.
+  connect-timeout-ms: ${MICROSOFT_GRAPH_CONNECT_TIMEOUT_MS:5000}
+  read-timeout-ms: ${MICROSOFT_GRAPH_READ_TIMEOUT_MS:10000}
+  response-timeout-ms: ${MICROSOFT_GRAPH_RESPONSE_TIMEOUT_MS:15000}
+
+docusign:
+  integration-key: ${DOCUSIGN_INTEGRATION_KEY:}
+  user-id: ${DOCUSIGN_USER_ID:}
+  account-id: ${DOCUSIGN_ACCOUNT_ID:}
+  private-key-path: ${DOCUSIGN_PRIVATE_KEY_PATH:}
+  base-path: ${DOCUSIGN_BASE_PATH:https://demo.docusign.net/restapi}
+  oauth-base-path: ${DOCUSIGN_OAUTH_BASE_PATH:account-d.docusign.com}
+  token-expiry-buffer-seconds: 300
+  connect-timeout-ms: 5000
+  response-timeout-ms: 15000
