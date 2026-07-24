@@ -23,3 +23,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Internal/client-confidential notes - this repo is public, never commit these
+DocuSAP-POC-Summary.html
+DocuSAP-POC-Summary.pdf

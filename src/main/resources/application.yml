@@ -1,5 +1,7 @@
 server:
-  port: 8080
+  # Railway (and most PaaS hosts) inject a PORT env var the app must bind to;
+  # falls back to 8080 for local development where PORT isn't set.
+  port: ${PORT:8080}
 
 spring:
   application:
@@ -24,6 +26,12 @@ app:
     max-sharepoint-document-size-mb: 10
     max-total-envelope-size-mb: 25
     max-supporting-documents: 20
+  security:
+    # Blank (default) = no protection, fine for pure localhost testing.
+    # Set API_KEY once this service is reachable from anywhere else (e.g.
+    # deployed for SAP to call) - every /api/** request must then include a
+    # matching X-Api-Key header.
+    api-key: ${API_KEY:}
 
 microsoft-graph:
   tenant-id: ${MICROSOFT_TENANT_ID:}

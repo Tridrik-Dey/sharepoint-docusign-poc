@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mock SAP - PO Signature Trigger</title>
+<style>
+  :root {
+    color-scheme: light dark;
+  }
+  body {
+    font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    max-width: 640px;
+    margin: 40px auto;
+    padding: 0 20px;
+    background: #f5f6f8;
+    color: #1a1a1a;
+  }
+  @media (prefers-color-scheme: dark) {
+    body { background: #1e1f22; color: #e8e8e8; }
+    .card { background: #2b2d31 !important; border-color: #3a3c40 !important; }
+    input { background: #1e1f22 !important; color: #e8e8e8 !important; border-color: #3a3c40 !important; }
+    #result { background: #1e1f22 !important; border-color: #3a3c40 !important; }
+  }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  .subtitle { color: #666; margin-top: 0; margin-bottom: 24px; font-size: 0.9rem; }
+  .card {
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 24px;
+  }
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin: 14px 0 4px; }
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 0.95rem;
+  }
+  button {
+    margin-top: 22px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    background: #4f46e5;
+    color: white;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  button:hover:not(:disabled) { background: #4338ca; }
+  #result {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 8px;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.85rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: none;
+    border: 1px solid #ddd;
+    background: #f5f6f8;
+  }
+  #result.success { border-color: #22c55e; }
+  #result.failure { border-color: #ef4444; }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .badge.success { background: #dcfce7; color: #166534; }
+  .badge.failure { background: #fee2e2; color: #991b1b; }
+</style>
+</head>
+<body>
+
+<h1>Mock SAP - PO Signature Trigger</h1>
+<p class="subtitle">
+  Simulates the call SAP will eventually make: PO details + main PO PDF -&gt;
+  <code>POST /api/v1/po-envelopes</code>. Whatever is real vs. mocked depends
+  entirely on which Spring profile the backend is running under
+  (<code>mock</code> / <code>sharepoint-test</code> / <code>local</code>) -
+  this page never changes.
+</p>
+
+<div class="card">
+  <label for="poNumber">PO Number</label>
+  <input id="poNumber" value="4500000105">
+
+  <label for="revision">Revision</label>
+  <input id="revision" value="02">
+
+  <label for="vendorName">Vendor Name</label>
+  <input id="vendorName" value="Dummy Vendor SRL">
+
+  <label for="vendorEmail">Vendor Email</label>
+  <input id="vendorEmail" type="email" value="test@example.com">
+
+  <label for="apiKey">API Key (only needed if this server has one configured)</label>
+  <input id="apiKey" type="password" placeholder="leave blank for local/unprotected instances">
+
+  <button id="sendBtn" onclick="sendForSignature()">Send for Signature</button>
+</div>
+
+<pre id="result"></pre>
+
+<script>
+async function sendForSignature() {
+  const btn = document.getElementById('sendBtn');
+  const result = document.getElementById('result');
+  btn.disabled = true;
+  btn.textContent = 'Sending...';
+  result.style.display = 'none';
+  result.className = '';
+
+  try {
+    const metadata = {
+      poNumber: document.getElementById('poNumber').value.trim(),
+      revision: document.getElementById('revision').value.trim(),
+      vendorName: document.getElementById('vendorName').value.trim(),
+      vendorEmail: document.getElementById('vendorEmail').value.trim()
+    };
+
+    const pdfResponse = await fetch('/sample-files/Purchase-Order-4500000105.pdf');
+    if (!pdfResponse.ok) {
+      throw new Error('Could not load the sample PO PDF (HTTP ' + pdfResponse.status + ')');
+    }
+    const pdfBlob = await pdfResponse.blob();
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('purchaseOrderDocument', pdfBlob, 'Purchase-Order-' + metadata.poNumber + '.pdf');
+
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const headers = apiKey ? { 'X-Api-Key': apiKey } : {};
+
+    const response = await fetch('/api/v1/po-envelopes', { method: 'POST', body: form, headers: headers });
+    const body = await response.json();
+
+    result.style.display = 'block';
+    result.className = body.success ? 'success' : 'failure';
+    const badge = '<span class="badge ' + (body.success ? 'success' : 'failure') + '">'
+        + (body.success ? 'SUCCESS' : 'FAILED') + '</span>\n';
+    result.innerHTML = badge + escapeHtml(JSON.stringify(body, null, 2));
+  } catch (err) {
+    result.style.display = 'block';
+    result.className = 'failure';
+    result.innerHTML = '<span class="badge failure">ERROR</span>\n' + escapeHtml(String(err));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send for Signature';
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+</script>
+
+</body>
+</html>

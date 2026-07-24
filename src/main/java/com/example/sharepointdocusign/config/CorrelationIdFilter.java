@@ -5,6 +5,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -14,8 +15,11 @@ import java.util.UUID;
 /**
  * Generates (or propagates) a correlation id for every request, exposes it
  * via MDC for log correlation and echoes it back as a response header.
+ * Runs before ApiKeyFilter (lower @Order value) so the correlation id is
+ * already available if that filter needs to reject the request.
  */
 @Component
+@Order(1)
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
     public static final String HEADER_NAME = "X-Correlation-Id";
