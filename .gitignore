@@ -18,6 +18,7 @@ Thumbs.db
 .env
 *.pem
 *.key
+cloudrun-env.yaml
 # ...except the test-only RSA key fixtures used by the DocuSign WireMock tests
 !src/test/resources/*.pem
 
