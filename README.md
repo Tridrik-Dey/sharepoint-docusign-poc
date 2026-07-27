@@ -607,6 +607,44 @@ adapters (e.g. SAP PI/PO REST adapters that prefer JSON). If SAP requires
 this mode, a second endpoint or a content-type-based branch on the same
 endpoint could be added without changing the response contract.
 
+### Documents-only endpoint (no DocuSign involved)
+
+Real-world feedback from the SAP/Tecnimont side clarified that SAP already
+has its own direct connection to DocuSign - what's actually missing is just
+the ability to pull documents out of SharePoint (e.g. to attach them to the
+PO's own attachment list in SAP, via Generic Object Services). For that use
+case, a separate, simpler endpoint is available that returns documents
+without touching DocuSign at all:
+
+```
+GET /api/v1/po-documents/{poNumber}/{revision}
+Header: X-Api-Key: ...
+```
+
+```json
+{
+  "success": true,
+  "poNumber": "4500000105",
+  "revision": "02",
+  "documents": [
+    {
+      "fileName": "Commercial-Conditions.pdf",
+      "contentType": "application/pdf",
+      "size": 789,
+      "sha256": "b7ae6c29ff58d6bdcf72ebfdfbede802a585ae5bf9598bf1ed856bf7f4a91963",
+      "contentBase64": "JVBERi0xLjQK..."
+    }
+  ]
+}
+```
+
+This reuses the exact same SharePoint retrieval logic (`SharePointDocumentService`)
+as the envelope endpoint - same folder-path computation, same eligibility
+filtering, same SHA-256 verification - just returns the raw documents
+instead of building a DocuSign envelope from them. Whichever HTTP client SAP
+uses for outbound calls (e.g. `cl_http_client`) can call this the same way
+it would call any other external REST API.
+
 ---
 
 ## Implementation status

@@ -10,6 +10,22 @@
   ],
   "item": [
     {
+      "name": "Get PO Documents - retrieve only, no DocuSign",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/po-documents/4500000105/02",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "po-documents", "4500000105", "02"]
+        },
+        "description": "Retrieves the SharePoint documents for this PO/revision as base64-encoded content. No DocuSign or envelope logic involved - for callers that want to handle the documents themselves (e.g. attach to their own system)."
+      },
+      "response": []
+    },
+    {
       "name": "Create PO Envelope - success (mock mode sample)",
       "request": {
         "method": "POST",
