@@ -5,14 +5,17 @@
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:8080", "type": "string" }
+    { "key": "baseUrl", "value": "https://sharepoint-docusign-poc-119848802932.europe-west1.run.app", "type": "string" },
+    { "key": "apiKey", "value": "480694573e740a5d7a580bc71e1818f68769657f3d333f45421fe4332b86e236", "type": "string" }
   ],
   "item": [
     {
       "name": "Create PO Envelope - success (mock mode sample)",
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
         "body": {
           "mode": "formdata",
           "formdata": [
@@ -42,7 +45,9 @@
       "name": "Create PO Envelope - unknown PO (SHAREPOINT_FOLDER_NOT_FOUND)",
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
         "body": {
           "mode": "formdata",
           "formdata": [
@@ -72,7 +77,9 @@
       "name": "Create PO Envelope - invalid PO number format (INVALID_REQUEST)",
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
         "body": {
           "mode": "formdata",
           "formdata": [
@@ -102,7 +109,9 @@
       "name": "Create PO Envelope - non-PDF main document (INVALID_PDF)",
       "request": {
         "method": "POST",
-        "header": [],
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
         "body": {
           "mode": "formdata",
           "formdata": [
