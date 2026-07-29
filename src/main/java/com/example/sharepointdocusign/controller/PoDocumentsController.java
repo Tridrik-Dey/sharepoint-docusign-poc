@@ -51,4 +51,22 @@ public class PoDocumentsController {
                     PoDocumentsResponse.failure(poNumber, revision, ex.errorCode(), ex.getMessage(), correlationId));
         }
     }
+
+    /** Flat folder layout: {poNumber} itself contains the documents directly, no revision subfolder. */
+    @GetMapping("/api/v1/po-documents/{poNumber}")
+    public ResponseEntity<PoDocumentsResponse> getPoDocumentsFlat(@PathVariable String poNumber) {
+
+        String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
+        log.info("Received PO documents request (flat folder) poNumber={} correlationId={}",
+                poNumber, correlationId);
+
+        try {
+            List<DocumentPayload> documents = poDocumentsService.fetchDocumentPayloads(poNumber);
+            return ResponseEntity.ok(PoDocumentsResponse.success(poNumber, null, documents, correlationId));
+        } catch (PoEnvelopeException ex) {
+            log.warn("Request failed with errorCode={} message={}", ex.errorCode(), ex.getMessage());
+            return ResponseEntity.status(ex.httpStatus()).body(
+                    PoDocumentsResponse.failure(poNumber, null, ex.errorCode(), ex.getMessage(), correlationId));
+        }
+    }
 }

@@ -34,4 +34,22 @@ class SharePointPathsTest {
         assertThatThrownBy(() -> SharePointPaths.buildFolderPath(" ", "02"))
                 .isInstanceOf(InvalidRequestException.class);
     }
+
+    @Test
+    void buildsFlatFolderPathFromPoNumberAlone() {
+        assertThat(SharePointPaths.buildFolderPath("4500000233")).isEqualTo("4500000233");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"../etc", "a/b", "a\\b", "..", "a..b/../c", "%2e%2e%2fsecrets", "%2F", "%5c"})
+    void rejectsPathTraversalInFlatPoNumber(String malicious) {
+        assertThatThrownBy(() -> SharePointPaths.buildFolderPath(malicious))
+                .isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void rejectsBlankFlatPoNumber() {
+        assertThatThrownBy(() -> SharePointPaths.buildFolderPath(" "))
+                .isInstanceOf(InvalidRequestException.class);
+    }
 }

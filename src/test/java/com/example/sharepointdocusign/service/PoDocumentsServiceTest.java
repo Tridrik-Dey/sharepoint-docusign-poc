@@ -52,4 +52,29 @@ class PoDocumentsServiceTest {
         assertThatThrownBy(() -> service.fetchDocumentPayloads("0000000000", "01"))
                 .isInstanceOf(SharePointFolderNotFoundException.class);
     }
+
+    @Test
+    void mapsSharePointDocumentsToBase64PayloadsForFlatFolder() {
+        byte[] content = "%PDF-1.4\ndoc\n%%EOF".getBytes();
+        SharePointDocument doc = new SharePointDocument("id", "Doc.pdf", "application/pdf", content.length, content, "sha");
+        when(sharePointDocumentService.fetchDocuments("4500000233")).thenReturn(List.of(doc));
+
+        PoDocumentsService service = new PoDocumentsService(sharePointDocumentService);
+        List<DocumentPayload> payloads = service.fetchDocumentPayloads("4500000233");
+
+        assertThat(payloads).hasSize(1);
+        assertThat(payloads.get(0).fileName()).isEqualTo("Doc.pdf");
+        assertThat(payloads.get(0).contentBase64()).isEqualTo(Base64.getEncoder().encodeToString(content));
+    }
+
+    @Test
+    void propagatesExceptionsFromSharePointDocumentServiceForFlatFolder() {
+        when(sharePointDocumentService.fetchDocuments("1111111111"))
+                .thenThrow(new SharePointFolderNotFoundException("not found"));
+
+        PoDocumentsService service = new PoDocumentsService(sharePointDocumentService);
+
+        assertThatThrownBy(() -> service.fetchDocumentPayloads("1111111111"))
+                .isInstanceOf(SharePointFolderNotFoundException.class);
+    }
 }

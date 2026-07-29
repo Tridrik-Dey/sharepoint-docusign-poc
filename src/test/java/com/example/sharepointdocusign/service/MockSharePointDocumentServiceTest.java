@@ -47,4 +47,25 @@ class MockSharePointDocumentServiceTest {
         assertThatThrownBy(() -> service.fetchDocuments("9999999999", "01"))
                 .isInstanceOf(EmptySharePointFolderException.class);
     }
+
+    @Test
+    void returnsOnlyEligiblePdfsForFlatFolderSortedAlphabetically() {
+        List<SharePointDocument> documents = service.fetchDocuments("8000000000");
+
+        assertThat(documents).extracting(SharePointDocument::fileName)
+                .containsExactly("Valid-Doc-A.pdf", "Valid-Doc-B.pdf");
+        documents.forEach(doc -> assertThat(doc.sha256()).isNotBlank());
+    }
+
+    @Test
+    void throwsFolderNotFoundForUnknownFlatPoNumber() {
+        assertThatThrownBy(() -> service.fetchDocuments("1111111111"))
+                .isInstanceOf(SharePointFolderNotFoundException.class);
+    }
+
+    @Test
+    void throwsEmptyFolderWhenNoEligiblePdfsPresentInFlatFolder() {
+        assertThatThrownBy(() -> service.fetchDocuments("9999999998"))
+                .isInstanceOf(EmptySharePointFolderException.class);
+    }
 }

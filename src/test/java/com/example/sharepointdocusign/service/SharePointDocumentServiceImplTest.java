@@ -56,4 +56,29 @@ class SharePointDocumentServiceImplTest {
         assertThatThrownBy(() -> serviceUnderTest().fetchDocuments("4500000105", "02"))
                 .isInstanceOf(EmptySharePointFolderException.class);
     }
+
+    @Test
+    void flatFolderLayoutListsPoNumberDirectlyWithoutRevisionSubfolder() {
+        List<GraphDriveItem> children = List.of(
+                new GraphDriveItem("f-1", "SubFolder", null, null, new Object()),
+                new GraphDriveItem("id-b", "Doc-B.pdf", 20L, new GraphFileFacet("application/pdf"), null),
+                new GraphDriveItem("id-a", "Doc-A.pdf", 20L, new GraphFileFacet("application/pdf"), null));
+        when(graphClient.listChildren("4500000233")).thenReturn(children);
+        when(graphClient.downloadContent("id-a", "Doc-A.pdf")).thenReturn(VALID_PDF);
+        when(graphClient.downloadContent("id-b", "Doc-B.pdf")).thenReturn(VALID_PDF);
+
+        List<SharePointDocument> documents = serviceUnderTest().fetchDocuments("4500000233");
+
+        assertThat(documents).extracting(SharePointDocument::fileName).containsExactly("Doc-A.pdf", "Doc-B.pdf");
+    }
+
+    @Test
+    void flatFolderLayoutThrowsEmptyFolderWhenNoEligibleItemsRemain() {
+        List<GraphDriveItem> children = List.of(
+                new GraphDriveItem("id-txt", "notes.txt", 10L, new GraphFileFacet("text/plain"), null));
+        when(graphClient.listChildren("4500000233")).thenReturn(children);
+
+        assertThatThrownBy(() -> serviceUnderTest().fetchDocuments("4500000233"))
+                .isInstanceOf(EmptySharePointFolderException.class);
+    }
 }

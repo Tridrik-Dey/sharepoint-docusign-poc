@@ -45,4 +45,26 @@ class PoDocumentsControllerIntegrationTest {
                 .andExpect(jsonPath("$.poNumber").value("0000000000"))
                 .andExpect(jsonPath("$.revision").value("01"));
     }
+
+    @Test
+    void returnsDocumentsForKnownFlatPoFolder() throws Exception {
+        mockMvc.perform(get("/api/v1/po-documents/8000000000"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.poNumber").value("8000000000"))
+                .andExpect(jsonPath("$.revision").doesNotExist())
+                .andExpect(jsonPath("$.documents", org.hamcrest.Matchers.hasSize(2)))
+                .andExpect(jsonPath("$.documents[0].fileName").value("Valid-Doc-A.pdf"))
+                .andExpect(jsonPath("$.documents[0].contentBase64").exists());
+    }
+
+    @Test
+    void returnsFolderNotFoundForUnknownFlatPo() throws Exception {
+        mockMvc.perform(get("/api/v1/po-documents/1111111111"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SHAREPOINT_FOLDER_NOT_FOUND"))
+                .andExpect(jsonPath("$.poNumber").value("1111111111"))
+                .andExpect(jsonPath("$.revision").doesNotExist());
+    }
 }

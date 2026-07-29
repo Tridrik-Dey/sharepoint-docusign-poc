@@ -29,6 +29,14 @@ public class PoDocumentsService {
                 .toList();
     }
 
+    /** Flat folder layout: {poNumber} itself contains the documents directly, no revision subfolder. */
+    public List<DocumentPayload> fetchDocumentPayloads(String poNumber) {
+        List<SharePointDocument> documents = sharePointDocumentService.fetchDocuments(poNumber);
+        return documents.stream()
+                .map(this::toPayload)
+                .toList();
+    }
+
     private DocumentPayload toPayload(SharePointDocument document) {
         String contentBase64 = Base64.getEncoder().encodeToString(document.content());
         return new DocumentPayload(

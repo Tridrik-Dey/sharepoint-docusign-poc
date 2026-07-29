@@ -645,6 +645,39 @@ instead of building a DocuSign envelope from them. Whichever HTTP client SAP
 uses for outbound calls (e.g. `cl_http_client`) can call this the same way
 it would call any other external REST API.
 
+#### Flat folder layout (no revision subfolder)
+
+Some POs only have a single folder named after the PO number, with the
+documents directly inside it - no `REV-xx` subfolder at all. Both layouts are
+supported side by side; the nested `REV-xx` layout keeps working exactly as
+before. For a flat folder, just omit the revision path segment:
+
+```
+GET /api/v1/po-documents/{poNumber}
+Header: X-Api-Key: ...
+```
+
+```json
+{
+  "success": true,
+  "poNumber": "4500000233",
+  "documents": [
+    {
+      "fileName": "4500000233_Commercial-Conditions.pdf",
+      "contentType": "application/pdf",
+      "size": 789,
+      "sha256": "b7ae6c29ff58d6bdcf72ebfdfbede802a585ae5bf9598bf1ed856bf7f4a91963",
+      "contentBase64": "JVBERi0xLjQK..."
+    }
+  ]
+}
+```
+
+Note `revision` is simply absent from the response for this layout (it's
+never included on the request path, and the JSON omits null fields). File
+names are returned exactly as stored in SharePoint, including any PO-number
+prefix already baked into the filename - no stripping or renaming is done.
+
 ---
 
 ## Implementation status
@@ -664,11 +697,12 @@ Fully implemented, all three modes:
 - **Real DocuSign integration** - JWT-grant authentication with cached/refreshed
   tokens (`DocusignAuthService`), envelope creation with an anchor-based
   SignHere tab and SAP custom fields (`DocusignClient` / `DocusignEnvelopeServiceImpl`).
-- **Tests** - 72 tests: unit tests, MockMvc controller tests, WireMock tests
+- **Tests** - 98 tests: unit tests, MockMvc controller tests, WireMock tests
   for both Microsoft Graph and DocuSign, three Spring-context wiring tests
   (one per profile) proving each profile activates the right combination of
   real/mock beans, and one full end-to-end test proving the real (non-mock)
-  wiring works together.
+  wiring works together. Covers both the nested `REV-xx` and flat SharePoint
+  folder layouts.
 - **Postman collection, Dockerfile, docker-compose.yml** for easy local use.
 
 ## Verifying real SharePoint vs. mocked DocuSign

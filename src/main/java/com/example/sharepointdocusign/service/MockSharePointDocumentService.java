@@ -25,8 +25,9 @@ import java.util.Locale;
 
 /**
  * Test-double for SharePointDocumentService, active on the "mock" profile.
- * Reads PDFs from src/main/resources/mock-sharepoint/{poNumber}/REV-{revision}/
- * instead of calling Microsoft Graph.
+ * Reads PDFs from src/main/resources/mock-sharepoint/... instead of calling
+ * Microsoft Graph - supports both the {poNumber}/REV-{revision} layout and
+ * the flat {poNumber}-only layout.
  */
 @Service
 @Profile("mock")
@@ -47,19 +48,30 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
     public List<SharePointDocument> fetchDocuments(String poNumber, String revision) {
         String folderPath = SharePointPaths.buildFolderPath(poNumber, revision);
         log.info("[MOCK] Fetching SharePoint documents from folder path '{}'", folderPath);
+        String description = "PO " + poNumber + " and revision " + revision;
+        return fetchFromFolder(folderPath, poNumber, description);
+    }
 
-        Resource[] anyFilesInRevisionFolder = list(folderPath + "/*");
-        if (anyFilesInRevisionFolder.length == 0) {
+    @Override
+    public List<SharePointDocument> fetchDocuments(String poNumber) {
+        String folderPath = SharePointPaths.buildFolderPath(poNumber);
+        log.info("[MOCK] Fetching SharePoint documents from flat folder path '{}'", folderPath);
+        String description = "PO " + poNumber;
+        return fetchFromFolder(folderPath, poNumber, description);
+    }
+
+    private List<SharePointDocument> fetchFromFolder(String folderPath, String poNumber, String description) {
+        Resource[] anyFilesInFolder = list(folderPath + "/*");
+        if (anyFilesInFolder.length == 0) {
             Resource[] anyFilesUnderPoNumber = list(poNumber + "/**");
             if (anyFilesUnderPoNumber.length == 0) {
-                throw new SharePointFolderNotFoundException(
-                        "No SharePoint folder was found for PO " + poNumber + " and revision " + revision + ".");
+                throw new SharePointFolderNotFoundException("No SharePoint folder was found for " + description + ".");
             }
             throw new EmptySharePointFolderException(
-                    "SharePoint folder for PO " + poNumber + " and revision " + revision + " contains no eligible documents.");
+                    "SharePoint folder for " + description + " contains no eligible documents.");
         }
 
-        List<SharePointDocument> documents = Arrays.stream(anyFilesInRevisionFolder)
+        List<SharePointDocument> documents = Arrays.stream(anyFilesInFolder)
                 .filter(Resource::isReadable)
                 .filter(resource -> isEligiblePdf(resource.getFilename()))
                 .map(this::toSharePointDocument)
@@ -68,8 +80,7 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
 
         if (documents.isEmpty()) {
             throw new EmptySharePointFolderException(
-                    "SharePoint folder for PO " + poNumber + " and revision " + revision
-                            + " contains no eligible PDF documents.");
+                    "SharePoint folder for " + description + " contains no eligible PDF documents.");
         }
 
         documents.forEach(doc -> log.info(

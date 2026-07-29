@@ -37,7 +37,19 @@ public class SharePointDocumentServiceImpl implements SharePointDocumentService 
     public List<SharePointDocument> fetchDocuments(String poNumber, String revision) {
         String folderPath = SharePointPaths.buildFolderPath(poNumber, revision);
         log.info("Fetching SharePoint documents from folder path '{}'", folderPath);
+        String description = "PO " + poNumber + " and revision " + revision;
+        return fetchFromFolder(folderPath, description);
+    }
 
+    @Override
+    public List<SharePointDocument> fetchDocuments(String poNumber) {
+        String folderPath = SharePointPaths.buildFolderPath(poNumber);
+        log.info("Fetching SharePoint documents from flat folder path '{}'", folderPath);
+        String description = "PO " + poNumber;
+        return fetchFromFolder(folderPath, description);
+    }
+
+    private List<SharePointDocument> fetchFromFolder(String folderPath, String description) {
         List<GraphDriveItem> children = graphClient.listChildren(folderPath);
 
         List<GraphDriveItem> eligibleItems = children.stream()
@@ -47,8 +59,7 @@ public class SharePointDocumentServiceImpl implements SharePointDocumentService 
 
         if (eligibleItems.isEmpty()) {
             throw new EmptySharePointFolderException(
-                    "SharePoint folder for PO " + poNumber + " and revision " + revision
-                            + " contains no eligible PDF documents.");
+                    "SharePoint folder for " + description + " contains no eligible PDF documents.");
         }
 
         List<SharePointDocument> documents = eligibleItems.stream().map(this::downloadAndValidate).toList();

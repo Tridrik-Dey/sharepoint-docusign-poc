@@ -26,6 +26,22 @@
       "response": []
     },
     {
+      "name": "Get PO Documents - flat folder (no revision subfolder)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/po-documents/4500000233",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "po-documents", "4500000233"]
+        },
+        "description": "Flat folder layout: the PO number folder itself contains the documents directly, with no REV-xx revision subfolder. Only pass the poNumber path segment - no revision. The response omits 'revision' entirely."
+      },
+      "response": []
+    },
+    {
       "name": "Create PO Envelope - success (mock mode sample)",
       "request": {
         "method": "POST",
