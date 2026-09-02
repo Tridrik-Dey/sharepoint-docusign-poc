@@ -10,7 +10,9 @@ import com.example.sharepointdocusign.client.DocusignClient.SignHereTab;
 import com.example.sharepointdocusign.client.DocusignClient.Signer;
 import com.example.sharepointdocusign.client.DocusignClient.Tabs;
 import com.example.sharepointdocusign.config.DocusignProperties;
+import com.example.sharepointdocusign.exception.DocusignAuthenticationException;
 import com.example.sharepointdocusign.exception.DocusignEnvelopeException;
+import com.example.sharepointdocusign.model.EnvelopeStatusResult;
 import com.example.sharepointdocusign.service.DocusignAuthService;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
@@ -27,6 +29,7 @@ import java.time.Duration;
 import java.util.List;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -60,7 +63,7 @@ class DocusignClientWireMockTest {
                 "classpath:test-private-key.pem",
                 "http://localhost:" + wireMockServer.port() + "/restapi",
                 "localhost:" + wireMockServer.port(),
-                300, 5000, 15000);
+                300, 5000, 15000, "test-webhook-secret");
 
         DocusignAuthService authService = mock(DocusignAuthService.class);
         when(authService.getAccessToken()).thenReturn("fake-docusign-token");
@@ -129,6 +132,61 @@ class DocusignClientWireMockTest {
                         .withBody("{\"errorCode\":\"INVALID_EMAIL_ADDRESS\",\"message\":\"...\"}")));
 
         assertThatThrownBy(() -> docusignClient.createEnvelope(sampleEnvelopeDefinition("sent")))
+                .isInstanceOf(DocusignEnvelopeException.class);
+    }
+
+    @Test
+    void fetchesEnvelopeStatusAndCustomFields() {
+        stubFor(get(urlEqualTo("/restapi/v2.1/accounts/test-account-id/envelopes/envelope-abc-123?include=custom_fields"))
+                .willReturn(okJson("""
+                        {
+                          "envelopeId": "envelope-abc-123",
+                          "status": "completed",
+                          "customFields": {
+                            "textCustomFields": [
+                              {"name": "SAP_PO_NUMBER", "value": "4500000105", "show": "false"},
+                              {"name": "SAP_PO_REVISION", "value": "02", "show": "false"},
+                              {"name": "SHAREPOINT_FOLDER_PATH", "value": "4500000105/REV-02", "show": "false"}
+                            ]
+                          }
+                        }
+                        """)));
+
+        EnvelopeStatusResult result = docusignClient.getEnvelopeWithCustomFields("envelope-abc-123");
+
+        assertThat(result.status()).isEqualTo("completed");
+        assertThat(result.customField("SAP_PO_NUMBER")).isEqualTo("4500000105");
+        assertThat(result.customField("SAP_PO_REVISION")).isEqualTo("02");
+    }
+
+    @Test
+    void mapsEnvelopeStatus401ToAuthenticationFailedException() {
+        stubFor(get(urlEqualTo("/restapi/v2.1/accounts/test-account-id/envelopes/envelope-abc-123?include=custom_fields"))
+                .willReturn(aResponse().withStatus(401)));
+
+        assertThatThrownBy(() -> docusignClient.getEnvelopeWithCustomFields("envelope-abc-123"))
+                .isInstanceOf(DocusignAuthenticationException.class);
+    }
+
+    @Test
+    void downloadsCombinedDocument() {
+        byte[] pdfBytes = "%PDF-1.4\ncombined\n%%EOF".getBytes();
+        stubFor(get(urlEqualTo("/restapi/v2.1/accounts/test-account-id/envelopes/envelope-abc-123/documents/combined"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/pdf")
+                        .withBody(pdfBytes)));
+
+        byte[] downloaded = docusignClient.downloadCombinedDocument("envelope-abc-123");
+
+        assertThat(downloaded).isEqualTo(pdfBytes);
+    }
+
+    @Test
+    void mapsCombinedDocumentServerErrorToEnvelopeException() {
+        stubFor(get(urlEqualTo("/restapi/v2.1/accounts/test-account-id/envelopes/envelope-abc-123/documents/combined"))
+                .willReturn(aResponse().withStatus(500)));
+
+        assertThatThrownBy(() -> docusignClient.downloadCombinedDocument("envelope-abc-123"))
                 .isInstanceOf(DocusignEnvelopeException.class);
     }
 }

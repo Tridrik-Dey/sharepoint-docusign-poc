@@ -249,6 +249,7 @@ while experimenting).
 | `DOCUSIGN_BASE_PATH` | DocuSign REST API base path | `https://demo.docusign.net/restapi` |
 | `DOCUSIGN_OAUTH_BASE_PATH` | DocuSign OAuth host | `account-d.docusign.com` |
 | `DOCUSIGN_SEND_ENVELOPE` | `true` = send, `false` = create as draft | `true` |
+| `DOCUSIGN_CONNECT_HMAC_SECRET` *(required for the signed-document webhook)* | Shared secret configured in DocuSign Connect, used to verify the `X-DocuSign-Signature-1` header. Blank = the webhook rejects every request (fail closed) - it is not optional like `API_KEY`. | `a-long-random-shared-secret` |
 | `SPRING_PROFILES_ACTIVE` | `mock` or `local` | `mock` |
 | `MICROSOFT_GRAPH_CONNECT_TIMEOUT_MS` *(optional)* | TCP connect timeout for Graph/identity calls | `5000` |
 | `MICROSOFT_GRAPH_READ_TIMEOUT_MS` *(optional)* | Time allowed between bytes once a response has started (matters most for large file downloads) | `10000` |
@@ -506,7 +507,7 @@ Full list of `errorCode` values: `INVALID_REQUEST`, `INVALID_PDF`,
 `SHAREPOINT_DOWNLOAD_FAILED`, `SHAREPOINT_UPLOAD_FAILED`, `TOO_MANY_DOCUMENTS`,
 `DOCUMENT_TOO_LARGE`, `TOTAL_ENVELOPE_SIZE_EXCEEDED`,
 `DOCUSIGN_AUTHENTICATION_FAILED`, `DOCUSIGN_ENVELOPE_CREATION_FAILED`,
-`INTERNAL_ERROR`.
+`DOCUSIGN_WEBHOOK_AUTHENTICATION_FAILED`, `INTERNAL_ERROR`.
 
 ## 17. Test commands
 
@@ -557,10 +558,41 @@ docker compose up --build
 - No authentication/authorization on the REST API itself (it is meant to sit
   behind SAP or an API gateway that will add that later).
 - Only one signer (the vendor) and a single SignHere tab are supported.
-- `Sites.Read.All` / `Files.Read.All` are broad application permissions;
-  production use should scope down to `Sites.Selected`.
-- Envelope webhook/status callback (DocuSign Connect) is out of scope - the
-  response only reflects the state at creation/send time.
+- `Sites.Read.All` / `Files.Read.All` / `Files.ReadWrite.All` are broad
+  application permissions; production use should scope down to `Sites.Selected`.
+- The DocuSign Connect webhook (see below) processes each notification fully
+  synchronously in the request thread - no async/queue infrastructure exists
+  here, matching this codebase's style everywhere else. A duplicate Connect
+  delivery re-uploads the signed document, landing as a renamed copy
+  (`...-1.pdf`) rather than overwriting - no data loss, just folder clutter
+  over time.
+
+## 19a. Auto-saving the signed document (DocuSign Connect webhook)
+
+Closes the loop on Path A: once an envelope this app created is fully
+signed, DocuSign Connect notifies `POST /webhooks/docusign/envelope-completed`
+(deliberately outside `/api/**`, since DocuSign can't send `X-Api-Key`). The
+notification is authenticated via HMAC-SHA256 (`X-DocuSign-Signature-1`,
+`DOCUSIGN_CONNECT_HMAC_SECRET`) - **fail closed**, unlike `API_KEY`'s blank-
+means-open default. Nothing about the webhook payload's shape or content is
+trusted beyond the envelope id: this app calls back into DocuSign's own API
+(reusing the same JWT-grant credentials) to fetch the envelope's authoritative
+status and the `SAP_PO_NUMBER`/`SAP_PO_REVISION` custom fields already
+stamped on every envelope (see [section 13](#13-how-to-place-the-anchor-text-in-the-dummy-po)),
+then downloads the combined signed document and stores it as
+`Signed-PO-{poNumber}-REV-{revision}.pdf` in the same SharePoint folder the
+source documents came from - reusing the exact SharePoint-write path built
+for the [documents-only upload endpoint](#storing-a-document-sap--sharepoint-no-docusign-involved).
+
+Only active in real mode (same `!mock & !sharepoint-test` profile guard as
+the rest of the DocuSign integration) - no real envelope, no real webhook.
+
+**DocuSign Connect setup** (admin console → Connect → Add Configuration → Custom):
+- URL to Publish: `https://<this-app-host>/webhooks/docusign/envelope-completed`
+- Trigger Events: Envelope Events → **Completed** only
+- Message format: **JSON**
+- Include Documents / Certificate of Completion / custom fields in payload: leave **unchecked** (this app never trusts the payload beyond the envelope id, so a smaller payload is strictly better)
+- Enable **HMAC**, generate one secret, set it as `DOCUSIGN_CONNECT_HMAC_SECRET` here
 
 ## 20. Future SAP Integration Contract
 
@@ -753,13 +785,20 @@ Fully implemented, all three modes:
 - **Real DocuSign integration** - JWT-grant authentication with cached/refreshed
   tokens (`DocusignAuthService`), envelope creation with an anchor-based
   SignHere tab and SAP custom fields (`DocusignClient` / `DocusignEnvelopeServiceImpl`).
-- **Tests** - 118 tests: unit tests, MockMvc controller tests, WireMock tests
-  for both Microsoft Graph and DocuSign, three Spring-context wiring tests
-  (one per profile) proving each profile activates the right combination of
-  real/mock beans, and one full end-to-end test proving the real (non-mock)
-  wiring works together. Covers both the nested `REV-xx` and flat SharePoint
-  folder layouts, and both directions (read and write) of the documents-only
-  endpoint.
+- **Signed-document webhook** - DocuSign Connect notification handling with
+  mandatory HMAC-SHA256 verification (`HmacSignatureVerifier`), authoritative
+  status/custom-field re-fetch and combined-document download
+  (`DocusignClient`), automatic SharePoint storage
+  (`DocusignEnvelopeCompletionService`), profile-gated the same as the rest
+  of the real DocuSign integration. See [section 19a](#19a-auto-saving-the-signed-document-docusign-connect-webhook).
+- **Tests** - 141 tests: unit tests, MockMvc controller tests, WireMock tests
+  for Microsoft Graph and DocuSign, Spring-context wiring tests (one per
+  profile, including the webhook's own) proving each profile activates the
+  right combination of real/mock beans, and two full end-to-end tests
+  proving the real (non-mock) wiring works together - one for envelope
+  creation, one for the signed-document webhook. Covers both the nested
+  `REV-xx` and flat SharePoint folder layouts, and both directions (read and
+  write) of the documents-only endpoint.
 - **Postman collection, Dockerfile, docker-compose.yml** for easy local use.
 
 ## Verifying real SharePoint vs. mocked DocuSign

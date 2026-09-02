@@ -12,5 +12,14 @@ public record DocusignProperties(
         String oauthBasePath,
         long tokenExpiryBufferSeconds,
         long connectTimeoutMs,
-        long responseTimeoutMs) {
+        long responseTimeoutMs,
+        /**
+         * Shared secret configured in DocuSign Connect's admin console, used to
+         * verify the X-DocuSign-Signature-1 HMAC-SHA256 header on inbound
+         * webhook notifications. Unlike app.security.api-key, a blank value
+         * here does NOT disable protection - it means the webhook rejects
+         * every request (fail closed), since this endpoint triggers a real
+         * SharePoint write and has no other authentication of its own.
+         */
+        String connectHmacSecret) {
 }

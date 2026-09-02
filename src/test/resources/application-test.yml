@@ -26,3 +26,4 @@ docusign:
   private-key-path: classpath:test-private-key.pem
   base-path: http://localhost:${wiremock.server.port:9999}/restapi
   oauth-base-path: http://localhost:${wiremock.server.port:9999}
+  connect-hmac-secret: test-webhook-secret

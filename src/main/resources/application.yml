@@ -60,3 +60,7 @@ docusign:
   token-expiry-buffer-seconds: 300
   connect-timeout-ms: 5000
   response-timeout-ms: 15000
+  # Blank = the /webhooks/docusign/envelope-completed endpoint rejects every
+  # request (fail closed) - NOT "disabled" like app.security.api-key's blank
+  # default. Set once DocuSign Connect is configured with the same secret.
+  connect-hmac-secret: ${DOCUSIGN_CONNECT_HMAC_SECRET:}

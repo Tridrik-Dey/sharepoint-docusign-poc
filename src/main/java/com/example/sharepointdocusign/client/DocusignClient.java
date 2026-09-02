@@ -3,6 +3,7 @@ package com.example.sharepointdocusign.client;
 import com.example.sharepointdocusign.config.DocusignProperties;
 import com.example.sharepointdocusign.exception.DocusignAuthenticationException;
 import com.example.sharepointdocusign.exception.DocusignEnvelopeException;
+import com.example.sharepointdocusign.model.EnvelopeStatusResult;
 import com.example.sharepointdocusign.service.DocusignAuthService;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.slf4j.Logger;
@@ -13,7 +14,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Thin wrapper around the DocuSign eSignature REST API envelope creation
@@ -55,18 +58,78 @@ public class DocusignClient {
             }
             return response;
         } catch (WebClientResponseException e) {
-            log.warn("DocuSign envelope creation failed with HTTP status {}", e.getStatusCode().value());
-            if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403) {
-                throw new DocusignAuthenticationException("DocuSign rejected the request credentials.", e);
-            }
-            throw new DocusignEnvelopeException(
-                    "DocuSign rejected the envelope (HTTP " + e.getStatusCode().value() + ").", e);
+            throw mapDocusignError(e, "create the DocuSign envelope");
         } catch (DocusignEnvelopeException | DocusignAuthenticationException e) {
             throw e;
         } catch (Exception e) {
             log.error("Unexpected error while creating the DocuSign envelope", e);
             throw new DocusignEnvelopeException("Unexpected error while creating the DocuSign envelope.", e);
         }
+    }
+
+    /** Fetches the envelope's current status and custom fields (SAP_PO_NUMBER, SAP_PO_REVISION, ...). */
+    public EnvelopeStatusResult getEnvelopeWithCustomFields(String envelopeId) {
+        try {
+            EnvelopeDetailResponse response = docusignWebClient.get()
+                    .uri("/v2.1/accounts/{accountId}/envelopes/{envelopeId}?include=custom_fields",
+                            properties.accountId(), envelopeId)
+                    .headers(headers -> headers.setBearerAuth(authService.getAccessToken()))
+                    .retrieve()
+                    .bodyToMono(EnvelopeDetailResponse.class)
+                    .block();
+
+            if (response == null || response.status() == null) {
+                throw new DocusignEnvelopeException("DocuSign returned an empty envelope status response.");
+            }
+            Map<String, String> customFields = new HashMap<>();
+            if (response.customFields() != null && response.customFields().textCustomFields() != null) {
+                for (TextCustomField field : response.customFields().textCustomFields()) {
+                    customFields.put(field.name(), field.value());
+                }
+            }
+            return new EnvelopeStatusResult(envelopeId, response.status(), customFields);
+        } catch (WebClientResponseException e) {
+            throw mapDocusignError(e, "fetch status for DocuSign envelope " + envelopeId);
+        } catch (DocusignEnvelopeException | DocusignAuthenticationException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error while fetching DocuSign envelope status", e);
+            throw new DocusignEnvelopeException("Unexpected error while fetching the DocuSign envelope status.", e);
+        }
+    }
+
+    /** Downloads every document in the envelope merged into one PDF, including DocuSign's Certificate of Completion. */
+    public byte[] downloadCombinedDocument(String envelopeId) {
+        try {
+            byte[] content = docusignWebClient.get()
+                    .uri("/v2.1/accounts/{accountId}/envelopes/{envelopeId}/documents/combined",
+                            properties.accountId(), envelopeId)
+                    .headers(headers -> headers.setBearerAuth(authService.getAccessToken()))
+                    .retrieve()
+                    .bodyToMono(byte[].class)
+                    .block();
+
+            if (content == null || content.length == 0) {
+                throw new DocusignEnvelopeException("DocuSign returned an empty combined document for envelope " + envelopeId + ".");
+            }
+            return content;
+        } catch (WebClientResponseException e) {
+            throw mapDocusignError(e, "download the combined document for DocuSign envelope " + envelopeId);
+        } catch (DocusignEnvelopeException | DocusignAuthenticationException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Unexpected error while downloading the DocuSign combined document", e);
+            throw new DocusignEnvelopeException("Unexpected error while downloading the DocuSign combined document.", e);
+        }
+    }
+
+    private RuntimeException mapDocusignError(WebClientResponseException e, String action) {
+        log.warn("DocuSign call failed while trying to {} (HTTP {})", action, e.getStatusCode().value());
+        if (e.getStatusCode().value() == 401 || e.getStatusCode().value() == 403) {
+            return new DocusignAuthenticationException("DocuSign rejected the request credentials while trying to " + action + ".", e);
+        }
+        return new DocusignEnvelopeException(
+                "DocuSign request failed while trying to " + action + " (HTTP " + e.getStatusCode().value() + ").", e);
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -115,5 +178,13 @@ public class DocusignClient {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record EnvelopeResponse(String envelopeId, String status, String uri, String statusDateTime) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record EnvelopeDetailResponse(String envelopeId, String status, ResponseCustomFields customFields) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record ResponseCustomFields(List<TextCustomField> textCustomFields) {
     }
 }

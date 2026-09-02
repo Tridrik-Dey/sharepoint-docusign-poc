@@ -63,7 +63,7 @@ class DocusignAuthServiceWireMockTest {
                 "classpath:" + keyClasspathFile,
                 "http://localhost:" + wireMockServer.port() + "/restapi",
                 "localhost:" + wireMockServer.port(),
-                300, 5000, 15000);
+                300, 5000, 15000, "test-webhook-secret");
     }
 
     @ParameterizedTest
