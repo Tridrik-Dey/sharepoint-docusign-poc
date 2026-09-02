@@ -4,6 +4,7 @@ import com.example.sharepointdocusign.client.MicrosoftGraphClient;
 import com.example.sharepointdocusign.config.MicrosoftGraphProperties;
 import com.example.sharepointdocusign.exception.EmptySharePointFolderException;
 import com.example.sharepointdocusign.model.SharePointDocument;
+import com.example.sharepointdocusign.model.SharePointUploadResult;
 import com.example.sharepointdocusign.service.MicrosoftTokenService;
 import com.example.sharepointdocusign.service.SharePointDocumentServiceImpl;
 import com.github.tomakehurst.wiremock.WireMockServer;
@@ -26,6 +27,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
@@ -147,6 +149,47 @@ class SharePointDocumentServiceImplWireMockTest {
 
         assertThatThrownBy(() -> service.fetchDocuments("4500000105", "02"))
                 .isInstanceOf(EmptySharePointFolderException.class);
+    }
+
+    @Test
+    void uploadsDocumentEndToEndForNestedFolder() throws Exception {
+        byte[] content = "%PDF-1.4\nnew-doc\n%%EOF".getBytes();
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/New-Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-new\",\"name\":\"New-Doc.pdf\",\"size\":" + content.length + "}")));
+
+        SharePointUploadResult result = service.uploadDocument("4500000105", "02", "New-Doc.pdf", content, "application/pdf");
+
+        assertThat(result.itemId()).isEqualTo("item-new");
+        assertThat(result.fileName()).isEqualTo("New-Doc.pdf");
+        assertThat(result.renamed()).isFalse();
+        assertThat(result.sha256()).isEqualTo(sha256Hex(content));
+    }
+
+    @Test
+    void uploadsDocumentEndToEndForFlatFolder() throws Exception {
+        byte[] content = "%PDF-1.4\nflat-doc\n%%EOF".getBytes();
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000233/New-Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-flat\",\"name\":\"New-Doc.pdf\",\"size\":" + content.length + "}")));
+
+        SharePointUploadResult result = service.uploadDocument("4500000233", "New-Doc.pdf", content, "application/pdf");
+
+        assertThat(result.itemId()).isEqualTo("item-flat");
+        assertThat(result.renamed()).isFalse();
+    }
+
+    @Test
+    void uploadReflectsGraphsAutoRenameAsRenamedTrue() {
+        byte[] content = "%PDF-1.4\ncollide\n%%EOF".getBytes();
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-renamed\",\"name\":\"Doc 1.pdf\",\"size\":" + content.length + "}")));
+
+        SharePointUploadResult result = service.uploadDocument("4500000105", "02", "Doc.pdf", content, "application/pdf");
+
+        assertThat(result.fileName()).isEqualTo("Doc 1.pdf");
+        assertThat(result.renamed()).isTrue();
     }
 
     private String sha256Hex(byte[] content) throws Exception {

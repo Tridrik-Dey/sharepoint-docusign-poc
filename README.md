@@ -346,11 +346,11 @@ itself via client credentials):
 |---|---|---|
 | `Sites.Read.All` | Application | List folder children and read site/drive metadata |
 | `Files.Read.All` | Application | Download file content |
+| `Files.ReadWrite.All` | Application | Upload file content (`POST /api/v1/po-documents/{poNumber}[/{revision}]`) |
 
-Both require **admin consent** - see step 5 above. For tighter production
+All three require **admin consent** - see step 5 above. For tighter production
 scoping, `Sites.Selected` plus explicit site permission grants is recommended
-over `Sites.Read.All`; this POC documents the simpler broad-permission path
-since it is not yet integrated with SAP.
+over `Sites.Read.All`.
 
 ## 11. How to configure DocuSign JWT authentication
 
@@ -503,9 +503,10 @@ Invalid main document:
 Full list of `errorCode` values: `INVALID_REQUEST`, `INVALID_PDF`,
 `SHAREPOINT_AUTHENTICATION_FAILED`, `SHAREPOINT_FOLDER_NOT_FOUND`,
 `SHAREPOINT_FOLDER_EMPTY`, `SHAREPOINT_ACCESS_DENIED`,
-`SHAREPOINT_DOWNLOAD_FAILED`, `TOO_MANY_DOCUMENTS`, `DOCUMENT_TOO_LARGE`,
-`TOTAL_ENVELOPE_SIZE_EXCEEDED`, `DOCUSIGN_AUTHENTICATION_FAILED`,
-`DOCUSIGN_ENVELOPE_CREATION_FAILED`, `INTERNAL_ERROR`.
+`SHAREPOINT_DOWNLOAD_FAILED`, `SHAREPOINT_UPLOAD_FAILED`, `TOO_MANY_DOCUMENTS`,
+`DOCUMENT_TOO_LARGE`, `TOTAL_ENVELOPE_SIZE_EXCEEDED`,
+`DOCUSIGN_AUTHENTICATION_FAILED`, `DOCUSIGN_ENVELOPE_CREATION_FAILED`,
+`INTERNAL_ERROR`.
 
 ## 17. Test commands
 
@@ -678,6 +679,61 @@ never included on the request path, and the JSON omits null fields). File
 names are returned exactly as stored in SharePoint, including any PO-number
 prefix already baked into the filename - no stripping or renaming is done.
 
+#### Storing a document (SAP → SharePoint, no DocuSign involved)
+
+The reverse direction: SAP pushes one document into the same SharePoint
+folder through this app, rather than talking to Microsoft Graph directly.
+
+```
+POST /api/v1/po-documents/{poNumber}/{revision}
+Header: X-Api-Key: ...
+Body: multipart/form-data, field name "document" = the file
+```
+
+```json
+{
+  "success": true,
+  "poNumber": "4500000105",
+  "revision": "02",
+  "fileName": "Commercial-Conditions.pdf",
+  "size": 789,
+  "sha256": "b7ae6c29ff58d6bdcf72ebfdfbede802a585ae5bf9598bf1ed856bf7f4a91963",
+  "renamed": false
+}
+```
+
+The flat-folder layout works the same way, just without the revision segment:
+
+```
+POST /api/v1/po-documents/{poNumber}
+Header: X-Api-Key: ...
+Body: multipart/form-data, field name "document" = the file
+```
+
+**One file per call** - a caller with several files to store calls this once
+per file. **The target folder is created automatically** if it doesn't exist
+yet (e.g. the very first document for a brand-new PO), so no manual
+SharePoint setup is required beforehand. **Name collisions are handled by
+SharePoint itself**: if a file with the same name already exists in that
+folder, Microsoft Graph auto-renames the new upload (e.g. `Doc.pdf` →
+`Doc 1.pdf`) rather than overwriting it - `fileName` in the response reflects
+whichever name was actually used, and `renamed` is `true` when that happened.
+Documents are validated the same way as everywhere else in this app (`%PDF`
+magic bytes, not just the declared content type) before ever reaching Graph.
+
+In mock mode, uploads are simulated - logged and hashed, but not actually
+persisted anywhere (mock-mode fixtures are read from the classpath, which
+isn't writable at runtime), the same way `MockDocusignEnvelopeService` fakes
+an envelope id without contacting DocuSign. `renamed` is always `false` in
+mock responses since there's nothing real to collide with; the auto-rename
+behavior can only be observed against real SharePoint (`sharepoint-test` or
+`local` profile).
+
+This endpoint requires the `Files.ReadWrite.All` Microsoft Graph application
+permission (in addition to the `Files.Read.All`/`Sites.Read.All` already
+listed in [section 10](#10-required-graph-permissions)), with admin consent
+granted the same way.
+
 ---
 
 ## Implementation status
@@ -697,12 +753,13 @@ Fully implemented, all three modes:
 - **Real DocuSign integration** - JWT-grant authentication with cached/refreshed
   tokens (`DocusignAuthService`), envelope creation with an anchor-based
   SignHere tab and SAP custom fields (`DocusignClient` / `DocusignEnvelopeServiceImpl`).
-- **Tests** - 98 tests: unit tests, MockMvc controller tests, WireMock tests
+- **Tests** - 118 tests: unit tests, MockMvc controller tests, WireMock tests
   for both Microsoft Graph and DocuSign, three Spring-context wiring tests
   (one per profile) proving each profile activates the right combination of
   real/mock beans, and one full end-to-end test proving the real (non-mock)
   wiring works together. Covers both the nested `REV-xx` and flat SharePoint
-  folder layouts.
+  folder layouts, and both directions (read and write) of the documents-only
+  endpoint.
 - **Postman collection, Dockerfile, docker-compose.yml** for easy local use.
 
 ## Verifying real SharePoint vs. mocked DocuSign

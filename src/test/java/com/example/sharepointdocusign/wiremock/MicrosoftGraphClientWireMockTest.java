@@ -7,10 +7,12 @@ import com.example.sharepointdocusign.exception.SharePointAccessException;
 import com.example.sharepointdocusign.exception.SharePointAuthenticationException;
 import com.example.sharepointdocusign.exception.SharePointDownloadFailedException;
 import com.example.sharepointdocusign.exception.SharePointFolderNotFoundException;
+import com.example.sharepointdocusign.exception.SharePointUploadFailedException;
 import com.example.sharepointdocusign.service.MicrosoftTokenService;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import io.netty.channel.ChannelOption;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +27,8 @@ import java.util.List;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -197,5 +201,108 @@ class MicrosoftGraphClientWireMockTest {
 
         assertThatThrownBy(() -> graphClient.downloadContent("item-1", "Technical-Specification.pdf"))
                 .isInstanceOf(SharePointDownloadFailedException.class);
+    }
+
+    @Test
+    void uploadsContentToExistingFolder() {
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-1\",\"name\":\"Doc.pdf\",\"size\":9}")));
+
+        GraphDriveItem uploaded = graphClient.uploadContent("4500000105/REV-02", "Doc.pdf", "%PDF-1.4".getBytes(), "application/pdf");
+
+        assertThat(uploaded.id()).isEqualTo("item-1");
+        assertThat(uploaded.name()).isEqualTo("Doc.pdf");
+    }
+
+    @Test
+    void uploadReturnsGraphsAutoRenamedNameOnCollision() {
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-2\",\"name\":\"Doc 1.pdf\",\"size\":9}")));
+
+        GraphDriveItem uploaded = graphClient.uploadContent("4500000105/REV-02", "Doc.pdf", "%PDF-1.4".getBytes(), "application/pdf");
+
+        assertThat(uploaded.name()).isEqualTo("Doc 1.pdf");
+    }
+
+    @Test
+    void uploadCreatesMissingFolderPathThenRetries() {
+        String uploadUrl = "/v1.0/drives/test-drive-id/root:/9999999999/REV-01/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename";
+
+        stubFor(put(urlEqualTo(uploadUrl))
+                .inScenario("upload-retry")
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willReturn(aResponse().withStatus(404).withBody("{\"error\":{\"code\":\"itemNotFound\"}}"))
+                .willSetStateTo("folder-created"));
+
+        stubFor(put(urlEqualTo(uploadUrl))
+                .inScenario("upload-retry")
+                .whenScenarioStateIs("folder-created")
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-3\",\"name\":\"Doc.pdf\",\"size\":9}")));
+
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root/children"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"folder-1\",\"name\":\"9999999999\",\"folder\":{}}")));
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root:/9999999999:/children"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"folder-2\",\"name\":\"REV-01\",\"folder\":{}}")));
+
+        GraphDriveItem uploaded = graphClient.uploadContent("9999999999/REV-01", "Doc.pdf", "%PDF-1.4".getBytes(), "application/pdf");
+
+        assertThat(uploaded.id()).isEqualTo("item-3");
+    }
+
+    @Test
+    void folderCreateConflictIsTreatedAsAlreadyExisting() {
+        String uploadUrl = "/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename";
+
+        stubFor(put(urlEqualTo(uploadUrl))
+                .inScenario("folder-race")
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willReturn(aResponse().withStatus(404))
+                .willSetStateTo("folder-created"));
+        stubFor(put(urlEqualTo(uploadUrl))
+                .inScenario("folder-race")
+                .whenScenarioStateIs("folder-created")
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-4\",\"name\":\"Doc.pdf\",\"size\":9}")));
+
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root/children"))
+                .willReturn(aResponse().withStatus(409).withBody("{\"error\":{\"code\":\"nameAlreadyExists\"}}")));
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105:/children"))
+                .willReturn(aResponse().withStatus(409).withBody("{\"error\":{\"code\":\"nameAlreadyExists\"}}")));
+
+        GraphDriveItem uploaded = graphClient.uploadContent("4500000105/REV-02", "Doc.pdf", "%PDF-1.4".getBytes(), "application/pdf");
+
+        assertThat(uploaded.id()).isEqualTo("item-4");
+    }
+
+    @Test
+    void mapsUpload403ToAccessDeniedException() {
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(403).withBody("{\"error\":{\"code\":\"accessDenied\"}}")));
+
+        assertThatThrownBy(() -> graphClient.uploadContent("4500000105/REV-02", "Doc.pdf", "%PDF-1.4".getBytes(), "application/pdf"))
+                .isInstanceOf(SharePointAccessException.class);
+    }
+
+    @Test
+    void mapsUpload401ToAuthenticationFailedException() {
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(401).withBody("{\"error\":{\"code\":\"InvalidAuthenticationToken\"}}")));
+
+        assertThatThrownBy(() -> graphClient.uploadContent("4500000105/REV-02", "Doc.pdf", "%PDF-1.4".getBytes(), "application/pdf"))
+                .isInstanceOf(SharePointAuthenticationException.class);
+    }
+
+    @Test
+    void mapsUploadServerErrorToUploadFailedException() {
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(500).withBody("{\"error\":{\"code\":\"generalException\"}}")));
+
+        assertThatThrownBy(() -> graphClient.uploadContent("4500000105/REV-02", "Doc.pdf", "%PDF-1.4".getBytes(), "application/pdf"))
+                .isInstanceOf(SharePointUploadFailedException.class);
     }
 }

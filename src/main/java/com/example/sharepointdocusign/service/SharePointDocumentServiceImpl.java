@@ -4,6 +4,7 @@ import com.example.sharepointdocusign.client.MicrosoftGraphClient;
 import com.example.sharepointdocusign.client.MicrosoftGraphClient.GraphDriveItem;
 import com.example.sharepointdocusign.exception.EmptySharePointFolderException;
 import com.example.sharepointdocusign.model.SharePointDocument;
+import com.example.sharepointdocusign.model.SharePointUploadResult;
 import com.example.sharepointdocusign.util.FileValidationUtil;
 import com.example.sharepointdocusign.util.HashUtil;
 import com.example.sharepointdocusign.util.SharePointPaths;
@@ -92,5 +93,25 @@ public class SharePointDocumentServiceImpl implements SharePointDocumentService 
         FileValidationUtil.validatePdf(content, contentType, item.name());
         String sha256 = HashUtil.sha256(content);
         return new SharePointDocument(item.id(), item.name(), contentType, content.length, content, sha256);
+    }
+
+    @Override
+    public SharePointUploadResult uploadDocument(String poNumber, String revision, String fileName, byte[] content, String contentType) {
+        return uploadToFolder(SharePointPaths.buildFolderPath(poNumber, revision), fileName, content, contentType);
+    }
+
+    @Override
+    public SharePointUploadResult uploadDocument(String poNumber, String fileName, byte[] content, String contentType) {
+        return uploadToFolder(SharePointPaths.buildFolderPath(poNumber), fileName, content, contentType);
+    }
+
+    private SharePointUploadResult uploadToFolder(String folderPath, String fileName, byte[] content, String contentType) {
+        log.info("Uploading SharePoint document folderPath={} fileName={} size={}", folderPath, fileName, content.length);
+        GraphDriveItem uploaded = graphClient.uploadContent(folderPath, fileName, content, contentType);
+        String sha256 = HashUtil.sha256(content);
+        boolean renamed = uploaded.name() != null && !uploaded.name().equals(fileName);
+        log.info("Uploaded SharePoint document folderPath={} requestedName={} storedName={} size={} sha256={} renamed={}",
+                folderPath, fileName, uploaded.name(), content.length, sha256, renamed);
+        return new SharePointUploadResult(uploaded.id(), uploaded.name(), content.length, sha256, renamed);
     }
 }

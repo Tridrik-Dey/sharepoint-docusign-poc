@@ -4,6 +4,7 @@ import com.example.sharepointdocusign.config.ApplicationProperties;
 import com.example.sharepointdocusign.exception.EmptySharePointFolderException;
 import com.example.sharepointdocusign.exception.SharePointFolderNotFoundException;
 import com.example.sharepointdocusign.model.SharePointDocument;
+import com.example.sharepointdocusign.model.SharePointUploadResult;
 import com.example.sharepointdocusign.util.FileValidationUtil;
 import com.example.sharepointdocusign.util.HashUtil;
 import com.example.sharepointdocusign.util.SharePointPaths;
@@ -22,6 +23,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * Test-double for SharePointDocumentService, active on the "mock" profile.
@@ -117,5 +119,33 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read mock SharePoint resource " + resource.getFilename(), e);
         }
+    }
+
+    /**
+     * Simulated upload: mock-mode fixtures live on the classpath, which is
+     * read-only at runtime (especially from a packaged jar), so this never
+     * writes a real file anywhere - it only fakes a plausible successful
+     * result, the same way MockDocusignEnvelopeService fakes an envelope id
+     * without contacting DocuSign. {@code renamed} is always false here,
+     * since there is no real collision to detect against nothing persisted -
+     * SharePoint's actual auto-rename-on-collision behavior can only be
+     * observed against real SharePoint (sharepoint-test or local profile).
+     */
+    @Override
+    public SharePointUploadResult uploadDocument(String poNumber, String revision, String fileName, byte[] content, String contentType) {
+        return simulateUpload(SharePointPaths.buildFolderPath(poNumber, revision), fileName, content);
+    }
+
+    @Override
+    public SharePointUploadResult uploadDocument(String poNumber, String fileName, byte[] content, String contentType) {
+        return simulateUpload(SharePointPaths.buildFolderPath(poNumber), fileName, content);
+    }
+
+    private SharePointUploadResult simulateUpload(String folderPath, String fileName, byte[] content) {
+        String sha256 = HashUtil.sha256(content);
+        String itemId = "mock-upload-" + UUID.randomUUID();
+        log.info("[MOCK] Simulated SharePoint upload folderPath={} fileName={} size={} sha256={}",
+                folderPath, fileName, content.length, sha256);
+        return new SharePointUploadResult(itemId, fileName, content.length, sha256, false);
     }
 }

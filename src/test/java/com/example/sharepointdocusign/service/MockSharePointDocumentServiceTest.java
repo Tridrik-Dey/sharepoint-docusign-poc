@@ -4,6 +4,7 @@ import com.example.sharepointdocusign.config.ApplicationProperties;
 import com.example.sharepointdocusign.exception.EmptySharePointFolderException;
 import com.example.sharepointdocusign.exception.SharePointFolderNotFoundException;
 import com.example.sharepointdocusign.model.SharePointDocument;
+import com.example.sharepointdocusign.model.SharePointUploadResult;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -67,5 +68,31 @@ class MockSharePointDocumentServiceTest {
     void throwsEmptyFolderWhenNoEligiblePdfsPresentInFlatFolder() {
         assertThatThrownBy(() -> service.fetchDocuments("9999999998"))
                 .isInstanceOf(EmptySharePointFolderException.class);
+    }
+
+    @Test
+    void simulatesUploadWithoutTouchingTheClasspath() {
+        byte[] content = "%PDF-1.4\nnew-doc\n%%EOF".getBytes();
+
+        SharePointUploadResult result = service.uploadDocument("4500000105", "02", "New-Doc.pdf", content, "application/pdf");
+
+        assertThat(result.fileName()).isEqualTo("New-Doc.pdf");
+        assertThat(result.size()).isEqualTo(content.length);
+        assertThat(result.sha256()).isNotBlank();
+        assertThat(result.renamed()).isFalse();
+        // Confirms nothing was actually persisted: fetching the same folder still only returns the real fixtures.
+        assertThat(service.fetchDocuments("4500000105", "02"))
+                .extracting(SharePointDocument::fileName)
+                .doesNotContain("New-Doc.pdf");
+    }
+
+    @Test
+    void simulatesUploadForFlatFolder() {
+        byte[] content = "%PDF-1.4\nflat-doc\n%%EOF".getBytes();
+
+        SharePointUploadResult result = service.uploadDocument("8000000000", "New-Doc.pdf", content, "application/pdf");
+
+        assertThat(result.fileName()).isEqualTo("New-Doc.pdf");
+        assertThat(result.renamed()).isFalse();
     }
 }
