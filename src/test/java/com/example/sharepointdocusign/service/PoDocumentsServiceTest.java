@@ -46,7 +46,7 @@ class PoDocumentsServiceTest {
         byte[] contentB = "%PDF-1.4\ndoc-b\n%%EOF".getBytes();
         SharePointDocument docA = new SharePointDocument("id-a", "Doc-A.pdf", "application/pdf", contentA.length, contentA, "sha-a");
         SharePointDocument docB = new SharePointDocument("id-b", "Doc-B.pdf", "application/pdf", contentB.length, contentB, "sha-b");
-        when(sharePointDocumentService.fetchDocuments("4500000105", "02")).thenReturn(List.of(docA, docB));
+        when(sharePointDocumentService.fetchAllSupportedDocuments("4500000105", "02")).thenReturn(List.of(docA, docB));
 
         PoDocumentsService service = newService();
         List<DocumentPayload> payloads = service.fetchDocumentPayloads("4500000105", "02");
@@ -63,7 +63,7 @@ class PoDocumentsServiceTest {
 
     @Test
     void propagatesExceptionsFromSharePointDocumentService() {
-        when(sharePointDocumentService.fetchDocuments("0000000000", "01"))
+        when(sharePointDocumentService.fetchAllSupportedDocuments("0000000000", "01"))
                 .thenThrow(new SharePointFolderNotFoundException("not found"));
 
         PoDocumentsService service = newService();
@@ -76,7 +76,7 @@ class PoDocumentsServiceTest {
     void mapsSharePointDocumentsToBase64PayloadsForFlatFolder() {
         byte[] content = "%PDF-1.4\ndoc\n%%EOF".getBytes();
         SharePointDocument doc = new SharePointDocument("id", "Doc.pdf", "application/pdf", content.length, content, "sha");
-        when(sharePointDocumentService.fetchDocuments("4500000233")).thenReturn(List.of(doc));
+        when(sharePointDocumentService.fetchAllSupportedDocuments("4500000233")).thenReturn(List.of(doc));
 
         PoDocumentsService service = newService();
         List<DocumentPayload> payloads = service.fetchDocumentPayloads("4500000233");
@@ -88,7 +88,7 @@ class PoDocumentsServiceTest {
 
     @Test
     void propagatesExceptionsFromSharePointDocumentServiceForFlatFolder() {
-        when(sharePointDocumentService.fetchDocuments("1111111111"))
+        when(sharePointDocumentService.fetchAllSupportedDocuments("1111111111"))
                 .thenThrow(new SharePointFolderNotFoundException("not found"));
 
         PoDocumentsService service = newService();

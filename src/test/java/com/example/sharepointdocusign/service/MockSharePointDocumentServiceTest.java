@@ -71,6 +71,18 @@ class MockSharePointDocumentServiceTest {
     }
 
     @Test
+    void fetchAllSupportedDocumentsReturnsNonPdfTypesThatFetchDocumentsExcludes() {
+        List<SharePointDocument> pdfOnly = service.fetchDocuments("6000000000", "01");
+        assertThat(pdfOnly).extracting(SharePointDocument::fileName).containsExactly("Spec.pdf");
+
+        List<SharePointDocument> allSupported = service.fetchAllSupportedDocuments("6000000000", "01");
+        assertThat(allSupported).extracting(SharePointDocument::fileName)
+                .containsExactly("Amendment.docx", "Photo.jpg", "Spec.pdf");
+        assertThat(allSupported).extracting(SharePointDocument::contentType).containsExactlyInAnyOrder(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "application/pdf");
+    }
+
+    @Test
     void simulatesUploadWithoutTouchingTheClasspath() {
         byte[] content = "%PDF-1.4\nnew-doc\n%%EOF".getBytes();
 

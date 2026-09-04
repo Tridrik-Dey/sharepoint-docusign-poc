@@ -51,7 +51,7 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
         String folderPath = SharePointPaths.buildFolderPath(poNumber, revision);
         log.info("[MOCK] Fetching SharePoint documents from folder path '{}'", folderPath);
         String description = "PO " + poNumber + " and revision " + revision;
-        return fetchFromFolder(folderPath, poNumber, description);
+        return fetchFromFolder(folderPath, poNumber, description, true);
     }
 
     @Override
@@ -59,10 +59,27 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
         String folderPath = SharePointPaths.buildFolderPath(poNumber);
         log.info("[MOCK] Fetching SharePoint documents from flat folder path '{}'", folderPath);
         String description = "PO " + poNumber;
-        return fetchFromFolder(folderPath, poNumber, description);
+        return fetchFromFolder(folderPath, poNumber, description, true);
     }
 
-    private List<SharePointDocument> fetchFromFolder(String folderPath, String poNumber, String description) {
+    @Override
+    public List<SharePointDocument> fetchAllSupportedDocuments(String poNumber, String revision) {
+        String folderPath = SharePointPaths.buildFolderPath(poNumber, revision);
+        log.info("[MOCK] Fetching all supported SharePoint documents from folder path '{}'", folderPath);
+        String description = "PO " + poNumber + " and revision " + revision;
+        return fetchFromFolder(folderPath, poNumber, description, false);
+    }
+
+    @Override
+    public List<SharePointDocument> fetchAllSupportedDocuments(String poNumber) {
+        String folderPath = SharePointPaths.buildFolderPath(poNumber);
+        log.info("[MOCK] Fetching all supported SharePoint documents from flat folder path '{}'", folderPath);
+        String description = "PO " + poNumber;
+        return fetchFromFolder(folderPath, poNumber, description, false);
+    }
+
+    private List<SharePointDocument> fetchFromFolder(
+            String folderPath, String poNumber, String description, boolean restrictToPdf) {
         Resource[] anyFilesInFolder = list(folderPath + "/*");
         if (anyFilesInFolder.length == 0) {
             Resource[] anyFilesUnderPoNumber = list(poNumber + "/**");
@@ -75,14 +92,14 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
 
         List<SharePointDocument> documents = Arrays.stream(anyFilesInFolder)
                 .filter(Resource::isReadable)
-                .filter(resource -> isEligiblePdf(resource.getFilename()))
-                .map(this::toSharePointDocument)
+                .filter(resource -> isEligible(resource.getFilename(), restrictToPdf))
+                .map(resource -> toSharePointDocument(resource, restrictToPdf))
                 .sorted(Comparator.comparing(SharePointDocument::fileName, String.CASE_INSENSITIVE_ORDER))
                 .toList();
 
         if (documents.isEmpty()) {
             throw new EmptySharePointFolderException(
-                    "SharePoint folder for " + description + " contains no eligible PDF documents.");
+                    "SharePoint folder for " + description + " contains no eligible documents.");
         }
 
         documents.forEach(doc -> log.info(
@@ -102,20 +119,29 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
         }
     }
 
-    private boolean isEligiblePdf(String filename) {
+    private boolean isEligible(String filename, boolean restrictToPdf) {
         if (filename == null || filename.isBlank() || filename.startsWith("~$")) {
             return false;
         }
-        return filename.toLowerCase(Locale.ROOT).endsWith(".pdf");
+        if (restrictToPdf) {
+            return filename.toLowerCase(Locale.ROOT).endsWith(".pdf");
+        }
+        return FileValidationUtil.isSupportedUploadExtension(filename);
     }
 
-    private SharePointDocument toSharePointDocument(Resource resource) {
+    private SharePointDocument toSharePointDocument(Resource resource, boolean restrictToPdf) {
         try {
             byte[] content = resource.getContentAsByteArray();
             String filename = resource.getFilename();
-            FileValidationUtil.validatePdf(content, "application/pdf", filename);
+            String contentType;
+            if (restrictToPdf) {
+                FileValidationUtil.validatePdf(content, "application/pdf", filename);
+                contentType = "application/pdf";
+            } else {
+                contentType = FileValidationUtil.validateSupportedUpload(content, filename);
+            }
             String sha256 = HashUtil.sha256(content);
-            return new SharePointDocument("mock-" + filename, filename, "application/pdf", content.length, content, sha256);
+            return new SharePointDocument("mock-" + filename, filename, contentType, content.length, content, sha256);
         } catch (IOException e) {
             throw new UncheckedIOException("Failed to read mock SharePoint resource " + resource.getFilename(), e);
         }

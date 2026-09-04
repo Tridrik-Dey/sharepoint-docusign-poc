@@ -33,7 +33,7 @@ public class PoDocumentsService {
     }
 
     public List<DocumentPayload> fetchDocumentPayloads(String poNumber, String revision) {
-        List<SharePointDocument> documents = sharePointDocumentService.fetchDocuments(poNumber, revision);
+        List<SharePointDocument> documents = sharePointDocumentService.fetchAllSupportedDocuments(poNumber, revision);
         return documents.stream()
                 .map(this::toPayload)
                 .toList();
@@ -41,7 +41,7 @@ public class PoDocumentsService {
 
     /** Flat folder layout: {poNumber} itself contains the documents directly, no revision subfolder. */
     public List<DocumentPayload> fetchDocumentPayloads(String poNumber) {
-        List<SharePointDocument> documents = sharePointDocumentService.fetchDocuments(poNumber);
+        List<SharePointDocument> documents = sharePointDocumentService.fetchAllSupportedDocuments(poNumber);
         return documents.stream()
                 .map(this::toPayload)
                 .toList();

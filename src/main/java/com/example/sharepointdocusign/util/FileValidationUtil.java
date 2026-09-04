@@ -106,6 +106,15 @@ public final class FileValidationUtil {
         return contentType;
     }
 
+    /**
+     * Extension-only pre-check (no content yet, e.g. filtering a SharePoint
+     * folder listing before downloading anything) against the same allowlist
+     * validateSupportedUpload() enforces once content is available.
+     */
+    public static boolean isSupportedUploadExtension(String fileName) {
+        return fileName != null && SUPPORTED_UPLOAD_EXTENSIONS.containsKey(extractExtension(fileName));
+    }
+
     public static boolean hasJpegMagicBytes(byte[] content) {
         return startsWith(content, JPEG_MAGIC);
     }

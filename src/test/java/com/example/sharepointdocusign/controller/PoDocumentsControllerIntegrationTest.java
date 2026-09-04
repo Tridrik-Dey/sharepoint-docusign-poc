@@ -41,6 +41,20 @@ class PoDocumentsControllerIntegrationTest {
     }
 
     @Test
+    void getReturnsNonPdfDocumentsTooUnlikeEnvelopeCreation() throws Exception {
+        mockMvc.perform(get("/api/v1/po-documents/6000000000/01"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.documents", org.hamcrest.Matchers.hasSize(3)))
+                .andExpect(jsonPath("$.documents[0].fileName").value("Amendment.docx"))
+                .andExpect(jsonPath("$.documents[0].contentType")
+                        .value("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
+                .andExpect(jsonPath("$.documents[1].fileName").value("Photo.jpg"))
+                .andExpect(jsonPath("$.documents[1].contentType").value("image/jpeg"))
+                .andExpect(jsonPath("$.documents[2].fileName").value("Spec.pdf"));
+    }
+
+    @Test
     void returnsFolderNotFoundForUnknownPo() throws Exception {
         mockMvc.perform(get("/api/v1/po-documents/0000000000/01"))
                 .andExpect(status().isNotFound())

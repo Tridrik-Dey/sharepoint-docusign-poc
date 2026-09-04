@@ -672,12 +672,18 @@ Header: X-Api-Key: ...
 }
 ```
 
-This reuses the exact same SharePoint retrieval logic (`SharePointDocumentService`)
-as the envelope endpoint - same folder-path computation, same eligibility
-filtering, same SHA-256 verification - just returns the raw documents
-instead of building a DocuSign envelope from them. Whichever HTTP client SAP
-uses for outbound calls (e.g. `cl_http_client`) can call this the same way
-it would call any other external REST API.
+This reuses the same folder-path computation and SHA-256 verification as the
+envelope endpoint, but **eligibility filtering is broader here**: this
+endpoint returns every file type this app can also store (PDF, Word, Excel,
+images - see the upload section below), not just PDFs. Envelope creation
+(`POST /api/v1/po-envelopes`) still only bundles PDFs into a DocuSign
+envelope - it needs real PDFs for the anchor-tag signing flow, and changing
+that would be new, untested territory for how DocuSign handles non-PDF
+attachments in this app's signing setup, so it's deliberately left as-is. A
+Word/Excel/image document sitting in a PO folder will show up in a `GET`
+here, but never in a signature envelope. Whichever HTTP client SAP uses for
+outbound calls (e.g. `cl_http_client`) can call this the same way it would
+call any other external REST API.
 
 #### Flat folder layout (no revision subfolder)
 
@@ -803,14 +809,16 @@ Fully implemented, all three modes:
   (`DocusignClient`), automatic SharePoint storage
   (`DocusignEnvelopeCompletionService`), profile-gated the same as the rest
   of the real DocuSign integration. See [section 19a](#19a-auto-saving-the-signed-document-docusign-connect-webhook).
-- **Tests** - 154 tests: unit tests, MockMvc controller tests, WireMock tests
+- **Tests** - 157 tests: unit tests, MockMvc controller tests, WireMock tests
   for Microsoft Graph and DocuSign, Spring-context wiring tests (one per
   profile, including the webhook's own) proving each profile activates the
   right combination of real/mock beans, and two full end-to-end tests
   proving the real (non-mock) wiring works together - one for envelope
   creation, one for the signed-document webhook. Covers both the nested
   `REV-xx` and flat SharePoint folder layouts, both directions (read and
-  write) of the documents-only endpoint, and every supported upload file
+  write) of the documents-only endpoint - including that GET returns every
+  supported file type while envelope creation stays PDF-only - and every
+  supported upload file
   type (PDF, Word, Excel, images).
 - **Postman collection, Dockerfile, docker-compose.yml** for easy local use.
 

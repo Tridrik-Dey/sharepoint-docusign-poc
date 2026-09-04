@@ -192,6 +192,43 @@ class SharePointDocumentServiceImplWireMockTest {
         assertThat(result.renamed()).isTrue();
     }
 
+    @Test
+    void fetchAllSupportedDocumentsReturnsNonPdfTypesThatFetchDocumentsWouldExclude() {
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/6000000000/REV-01:/children"))
+                .willReturn(okJson("""
+                        {
+                          "value": [
+                            {"id": "id-pdf", "name": "Spec.pdf", "file": {"mimeType": "application/pdf"}},
+                            {"id": "id-docx", "name": "Amendment.docx", "file": {"mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}},
+                            {"id": "id-jpg", "name": "Photo.jpg", "file": {"mimeType": "image/jpeg"}},
+                            {"id": "id-txt", "name": "notes.txt", "file": {"mimeType": "text/plain"}}
+                          ]
+                        }
+                        """)));
+
+        byte[] pdfBytes = "%PDF-1.4\n%%EOF".getBytes();
+        byte[] docxBytes = "fake docx bytes".getBytes();
+        byte[] jpegBytes = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00};
+
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-pdf/content"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/pdf").withBody(pdfBytes)));
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-docx/content"))
+                .willReturn(aResponse().withStatus(200)
+                        .withHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                        .withBody(docxBytes)));
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-jpg/content"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "image/jpeg").withBody(jpegBytes)));
+
+        List<SharePointDocument> documents = service.fetchAllSupportedDocuments("6000000000", "01");
+
+        // notes.txt is excluded (not in the upload allowlist), even though the folder listing included it -
+        // its content is never even downloaded (no stub registered for id-txt, so a download attempt would fail the test).
+        assertThat(documents).extracting(SharePointDocument::fileName)
+                .containsExactly("Amendment.docx", "Photo.jpg", "Spec.pdf");
+        assertThat(documents).extracting(SharePointDocument::contentType).containsExactlyInAnyOrder(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "application/pdf");
+    }
+
     private String sha256Hex(byte[] content) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
     }
