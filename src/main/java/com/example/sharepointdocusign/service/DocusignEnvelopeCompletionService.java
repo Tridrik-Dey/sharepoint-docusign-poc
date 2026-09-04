@@ -51,7 +51,7 @@ public class DocusignEnvelopeCompletionService {
         }
 
         byte[] combinedDocument = docusignClient.downloadCombinedDocument(envelopeId);
-        String fileName = "Signed-PO-" + poNumber + "-REV-" + revision + ".pdf";
+        String fileName = "Signed-PO-" + poNumber + "-" + revision + ".pdf";
 
         SharePointUploadResult result = sharePointDocumentService.uploadDocument(
                 poNumber, revision, fileName, combinedDocument, "application/pdf");

@@ -1,5 +1,5 @@
 # Profile used to run the whole flow WITHOUT any Microsoft Graph or DocuSign credentials.
-# MockSharePointDocumentService reads PDFs from src/main/resources/mock-sharepoint/{poNumber}/REV-{revision}/
+# MockSharePointDocumentService reads PDFs from src/main/resources/mock-sharepoint/{poNumber}/{revision}/
 # MockDocusignEnvelopeService returns a fake envelope id and never calls DocuSign.
 logging:
   level:

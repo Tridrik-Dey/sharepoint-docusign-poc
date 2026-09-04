@@ -13,7 +13,7 @@ import java.util.List;
 public interface SharePointDocumentService {
 
     /**
-     * Folder layout: {poNumber}/REV-{revision}. PDF-only - used by DocuSign
+     * Folder layout: {poNumber}/{revision}. PDF-only - used by DocuSign
      * envelope creation, which needs real PDFs for the anchor-tag signing
      * flow. For the broader set of file types this app can store (see
      * uploadDocument), use fetchAllSupportedDocuments instead.
@@ -36,7 +36,7 @@ public interface SharePointDocumentService {
     List<SharePointDocument> fetchAllSupportedDocuments(String poNumber);
 
     /**
-     * Stores one already-validated document into the {poNumber}/REV-{revision}
+     * Stores one already-validated document into the {poNumber}/{revision}
      * folder, creating the folder first if it doesn't exist yet.
      */
     SharePointUploadResult uploadDocument(String poNumber, String revision, String fileName, byte[] content, String contentType);

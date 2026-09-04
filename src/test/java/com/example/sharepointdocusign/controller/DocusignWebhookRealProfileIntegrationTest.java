@@ -109,9 +109,9 @@ class DocusignWebhookRealProfileIntegrationTest {
                         .withBody(signedPdf)));
 
         stubFor(put(urlEqualTo(
-                "/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Signed-PO-4500000105-REV-02.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                "/v1.0/drives/test-drive-id/root:/4500000105/02/Signed-PO-4500000105-02.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
                 .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
-                        .withBody("{\"id\":\"item-signed\",\"name\":\"Signed-PO-4500000105-REV-02.pdf\",\"size\":" + signedPdf.length + "}")));
+                        .withBody("{\"id\":\"item-signed\",\"name\":\"Signed-PO-4500000105-02.pdf\",\"size\":" + signedPdf.length + "}")));
 
         String body = """
                 {"event":"envelope-completed","data":{"envelopeId":"env-e2e-1"}}""";
@@ -126,7 +126,7 @@ class DocusignWebhookRealProfileIntegrationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(putRequestedFor(urlEqualTo(
-                "/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Signed-PO-4500000105-REV-02.pdf:/content?@microsoft.graph.conflictBehavior=rename")));
+                "/v1.0/drives/test-drive-id/root:/4500000105/02/Signed-PO-4500000105-02.pdf:/content?@microsoft.graph.conflictBehavior=rename")));
     }
 
     private String sign(String body, String secret) throws Exception {

@@ -93,7 +93,7 @@ class SharePointDocumentServiceImplWireMockTest {
 
     @Test
     void filtersToOnlyEligiblePdfsAndPreservesChecksumEndToEnd() throws Exception {
-        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02:/children"))
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02:/children"))
                 .willReturn(okJson("""
                         {
                           "value": [
@@ -125,7 +125,7 @@ class SharePointDocumentServiceImplWireMockTest {
 
     @Test
     void throwsEmptyFolderWhenGraphReturnsNoChildrenAtAll() {
-        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02:/children"))
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02:/children"))
                 .willReturn(okJson("""
                         { "value": [] }
                         """)));
@@ -136,7 +136,7 @@ class SharePointDocumentServiceImplWireMockTest {
 
     @Test
     void throwsEmptyFolderWhenOnlyIneligibleFilesArePresent() {
-        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02:/children"))
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02:/children"))
                 .willReturn(okJson("""
                         {
                           "value": [
@@ -154,7 +154,7 @@ class SharePointDocumentServiceImplWireMockTest {
     @Test
     void uploadsDocumentEndToEndForNestedFolder() throws Exception {
         byte[] content = "%PDF-1.4\nnew-doc\n%%EOF".getBytes();
-        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/New-Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02/New-Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
                 .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
                         .withBody("{\"id\":\"item-new\",\"name\":\"New-Doc.pdf\",\"size\":" + content.length + "}")));
 
@@ -182,7 +182,7 @@ class SharePointDocumentServiceImplWireMockTest {
     @Test
     void uploadReflectsGraphsAutoRenameAsRenamedTrue() {
         byte[] content = "%PDF-1.4\ncollide\n%%EOF".getBytes();
-        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
                 .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
                         .withBody("{\"id\":\"item-renamed\",\"name\":\"Doc 1.pdf\",\"size\":" + content.length + "}")));
 
@@ -194,7 +194,7 @@ class SharePointDocumentServiceImplWireMockTest {
 
     @Test
     void fetchAllSupportedDocumentsReturnsNonPdfTypesThatFetchDocumentsWouldExclude() {
-        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/6000000000/REV-01:/children"))
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/6000000000/01:/children"))
                 .willReturn(okJson("""
                         {
                           "value": [

@@ -28,7 +28,7 @@ import java.util.UUID;
 /**
  * Test-double for SharePointDocumentService, active on the "mock" profile.
  * Reads PDFs from src/main/resources/mock-sharepoint/... instead of calling
- * Microsoft Graph - supports both the {poNumber}/REV-{revision} layout and
+ * Microsoft Graph - supports both the {poNumber}/{revision} layout and
  * the flat {poNumber}-only layout.
  */
 @Service

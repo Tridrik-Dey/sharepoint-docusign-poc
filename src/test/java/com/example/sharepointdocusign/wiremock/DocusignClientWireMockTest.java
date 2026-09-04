@@ -146,7 +146,7 @@ class DocusignClientWireMockTest {
                             "textCustomFields": [
                               {"name": "SAP_PO_NUMBER", "value": "4500000105", "show": "false"},
                               {"name": "SAP_PO_REVISION", "value": "02", "show": "false"},
-                              {"name": "SHAREPOINT_FOLDER_PATH", "value": "4500000105/REV-02", "show": "false"}
+                              {"name": "SHAREPOINT_FOLDER_PATH", "value": "4500000105/02", "show": "false"}
                             ]
                           }
                         }

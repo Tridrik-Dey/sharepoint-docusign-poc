@@ -13,7 +13,7 @@ This service demonstrates, end-to-end and locally runnable, the flow SAP will
 eventually trigger for vendor signature on Purchase Orders:
 
 1. Receive a PO number, revision, vendor name/email and the main PO PDF.
-2. Compute the SharePoint folder for that PO/revision (`/{poNumber}/REV-{revision}`).
+2. Compute the SharePoint folder for that PO/revision (`/{poNumber}/{revision}`).
 3. Retrieve all eligible PDF documents from that folder via Microsoft Graph.
 4. Assemble a DocuSign envelope: main PO document first, then the SharePoint
    documents sorted alphabetically.
@@ -90,7 +90,7 @@ sharepoint-docusign-poc/
     │   │   └── util/         (FileValidationUtil, HashUtil, SharePointPaths, LogMaskingUtil)
     │   └── resources/
     │       ├── application.yml, application-local.yml, application-mock.yml
-    │       └── mock-sharepoint/4500000105/REV-02/*.pdf
+    │       └── mock-sharepoint/4500000105/02/*.pdf
     └── test/
         ├── java/com/example/sharepointdocusign/...   (unit + MockMvc + WireMock tests)
         └── resources/
@@ -204,7 +204,7 @@ above is redundant but harmless if you want to be explicit about it.
 Send the same request as in mock mode (section 14) at
 `http://localhost:8081/api/v1/po-envelopes`. The response's `envelopeId` will
 still look like `mock-envelope-...`, but `documentsIncluded` now reflects
-whatever PDFs actually exist in your real SharePoint `4500000105/REV-02`
+whatever PDFs actually exist in your real SharePoint `4500000105/02`
 folder - see [Verifying real SharePoint vs. mocked DocuSign](#verifying-real-sharepoint-vs-mocked-docusign)
 at the end of this README for exactly how to confirm that.
 
@@ -266,14 +266,14 @@ Assumed real-world structure once Microsoft Graph is wired up (Phase 2):
 ```
 PO-Documents/
 └── 4500000105/
-    └── REV-02/
+    └── 02/
         ├── Technical-Specification.pdf
         ├── Commercial-Conditions.pdf
         └── Safety-Requirements.pdf
 ```
 
 For **mock mode**, this is simulated locally under
-`src/main/resources/mock-sharepoint/4500000105/REV-02/`. To (re)generate the
+`src/main/resources/mock-sharepoint/4500000105/02/`. To (re)generate the
 three sample PDFs and the main PO sample, run from the project root:
 
 ```bash
@@ -283,16 +283,16 @@ java scripts/GenerateSamplePdfs.java
 This creates:
 - `sample-files/Purchase-Order-4500000105.pdf` (contains the literal text
   `Purchase Order 4500000105`, `Revision 02` and `/vendor-signature/`)
-- `src/main/resources/mock-sharepoint/4500000105/REV-02/Technical-Specification.pdf`
-- `src/main/resources/mock-sharepoint/4500000105/REV-02/Commercial-Conditions.pdf`
-- `src/main/resources/mock-sharepoint/4500000105/REV-02/Safety-Requirements.pdf`
+- `src/main/resources/mock-sharepoint/4500000105/02/Technical-Specification.pdf`
+- `src/main/resources/mock-sharepoint/4500000105/02/Commercial-Conditions.pdf`
+- `src/main/resources/mock-sharepoint/4500000105/02/Safety-Requirements.pdf`
 
 The script writes minimal, valid, non-copyrighted PDF 1.4 files by hand
 (no external PDF library dependency).
 
 To create the *real* SharePoint structure once you have a site: create the
 `DocuSAP-POC` site, the `PO-Documents` document library, then the
-`4500000105/REV-02` folder path, and upload the three sample PDFs there (or
+`4500000105/02` folder path, and upload the three sample PDFs there (or
 your own PDFs) - either through the SharePoint UI or the Graph API.
 
 ## 9. How to register the Microsoft Entra application
@@ -581,7 +581,7 @@ trusted beyond the envelope id: this app calls back into DocuSign's own API
 status and the `SAP_PO_NUMBER`/`SAP_PO_REVISION` custom fields already
 stamped on every envelope (see [section 13](#13-how-to-place-the-anchor-text-in-the-dummy-po)),
 then downloads the combined signed document and stores it as
-`Signed-PO-{poNumber}-REV-{revision}.pdf` in the same SharePoint folder the
+`Signed-PO-{poNumber}-{revision}.pdf` in the same SharePoint folder the
 source documents came from - reusing the exact SharePoint-write path built
 for the [documents-only upload endpoint](#storing-a-document-sap--sharepoint-no-docusign-involved).
 
@@ -688,9 +688,10 @@ call any other external REST API.
 #### Flat folder layout (no revision subfolder)
 
 Some POs only have a single folder named after the PO number, with the
-documents directly inside it - no `REV-xx` subfolder at all. Both layouts are
-supported side by side; the nested `REV-xx` layout keeps working exactly as
-before. For a flat folder, just omit the revision path segment:
+documents directly inside it - no revision subfolder at all. Both layouts are
+supported side by side; the nested (`{poNumber}/{revision}`) layout keeps
+working exactly as before. For a flat folder, just omit the revision path
+segment:
 
 ```
 GET /api/v1/po-documents/{poNumber}
@@ -815,7 +816,7 @@ Fully implemented, all three modes:
   right combination of real/mock beans, and two full end-to-end tests
   proving the real (non-mock) wiring works together - one for envelope
   creation, one for the signed-document webhook. Covers both the nested
-  `REV-xx` and flat SharePoint folder layouts, both directions (read and
+  (`{poNumber}/{revision}`) and flat SharePoint folder layouts, both directions (read and
   write) of the documents-only endpoint - including that GET returns every
   supported file type while envelope creation stays PDF-only - and every
   supported upload file
@@ -831,14 +832,14 @@ still fake:
 1. **Change something in the real SharePoint folder and see it reflected.**
    The bundled mock folder only ever contains `Technical-Specification.pdf`,
    `Commercial-Conditions.pdf` and `Safety-Requirements.pdf` for PO
-   `4500000105`/`REV-02`. Add, rename, or remove a PDF in the *real*
-   `4500000105/REV-02` SharePoint folder - if `documentsIncluded` in the
+   `4500000105`/`02`. Add, rename, or remove a PDF in the *real*
+   `4500000105/02` SharePoint folder - if `documentsIncluded` in the
    response changes to match, the documents came from a live Graph call, not
    the local mock resources.
 2. **Read the application logs.** Real retrieval logs come from
    `SharePointDocumentServiceImpl` / `MicrosoftGraphClient`, e.g.:
    ```
-   Fetching SharePoint documents from folder path '4500000105/REV-02'
+   Fetching SharePoint documents from folder path '4500000105/02'
    Retrieved SharePoint document name=Technical-Specification.pdf size=48213 sha256=...
    ```
    Mock retrieval instead logs lines prefixed `[MOCK]` from

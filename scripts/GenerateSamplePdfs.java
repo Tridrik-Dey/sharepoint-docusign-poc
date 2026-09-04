@@ -17,9 +17,9 @@ import java.util.List;
  *
  * Creates:
  *   sample-files/Purchase-Order-4500000105.pdf
- *   src/main/resources/mock-sharepoint/4500000105/REV-02/Technical-Specification.pdf
- *   src/main/resources/mock-sharepoint/4500000105/REV-02/Commercial-Conditions.pdf
- *   src/main/resources/mock-sharepoint/4500000105/REV-02/Safety-Requirements.pdf
+ *   src/main/resources/mock-sharepoint/4500000105/02/Technical-Specification.pdf
+ *   src/main/resources/mock-sharepoint/4500000105/02/Commercial-Conditions.pdf
+ *   src/main/resources/mock-sharepoint/4500000105/02/Safety-Requirements.pdf
  */
 public class GenerateSamplePdfs {
 
@@ -29,7 +29,7 @@ public class GenerateSamplePdfs {
                 "Purchase Order",
                 List.of("Purchase Order 4500000105", "Revision 02", "/vendor-signature/"));
 
-        Path mockFolder = Path.of("src", "main", "resources", "mock-sharepoint", "4500000105", "REV-02");
+        Path mockFolder = Path.of("src", "main", "resources", "mock-sharepoint", "4500000105", "02");
         writePdf(
                 mockFolder.resolve("Technical-Specification.pdf"),
                 "Technical Specification",

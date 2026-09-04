@@ -12,7 +12,7 @@ class SharePointPathsTest {
 
     @Test
     void buildsFolderPathFromPoNumberAndRevision() {
-        assertThat(SharePointPaths.buildFolderPath("4500000105", "02")).isEqualTo("4500000105/REV-02");
+        assertThat(SharePointPaths.buildFolderPath("4500000105", "02")).isEqualTo("4500000105/02");
     }
 
     @ParameterizedTest

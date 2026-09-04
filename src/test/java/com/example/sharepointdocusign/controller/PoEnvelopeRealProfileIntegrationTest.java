@@ -84,7 +84,7 @@ class PoEnvelopeRealProfileIntegrationTest {
                         {"access_token":"fake-graph-token","token_type":"Bearer","expires_in":3600}
                         """)));
 
-        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/REV-02:/children"))
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02:/children"))
                 .willReturn(okJson("""
                         {
                           "value": [

@@ -77,7 +77,7 @@ public class PoDocumentsController {
     }
 
     /**
-     * Stores one document into the {poNumber}/REV-{revision} SharePoint
+     * Stores one document into the {poNumber}/{revision} SharePoint
      * folder (creating it first if it doesn't exist yet). One file per call -
      * callers with multiple files call this once per file. No DocuSign or
      * envelope logic is involved.

@@ -60,13 +60,13 @@ class DocusignEnvelopeCompletionServiceTest {
         byte[] combined = "%PDF-1.4\nsigned\n%%EOF".getBytes();
         when(docusignClient.downloadCombinedDocument("env-3")).thenReturn(combined);
         when(sharePointDocumentService.uploadDocument(
-                eq("4500000105"), eq("02"), eq("Signed-PO-4500000105-REV-02.pdf"), eq(combined), eq("application/pdf")))
-                .thenReturn(new SharePointUploadResult("item-1", "Signed-PO-4500000105-REV-02.pdf", combined.length, "sha", false));
+                eq("4500000105"), eq("02"), eq("Signed-PO-4500000105-02.pdf"), eq(combined), eq("application/pdf")))
+                .thenReturn(new SharePointUploadResult("item-1", "Signed-PO-4500000105-02.pdf", combined.length, "sha", false));
 
         service().processEnvelopeCompletion("env-3");
 
         verify(sharePointDocumentService).uploadDocument(
-                "4500000105", "02", "Signed-PO-4500000105-REV-02.pdf", combined, "application/pdf");
+                "4500000105", "02", "Signed-PO-4500000105-02.pdf", combined, "application/pdf");
     }
 
     @Test

@@ -37,7 +37,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "po-documents", "4500000233"]
         },
-        "description": "Flat folder layout: the PO number folder itself contains the documents directly, with no REV-xx revision subfolder. Only pass the poNumber path segment - no revision. The response omits 'revision' entirely."
+        "description": "Flat folder layout: the PO number folder itself contains the documents directly, with no revision subfolder. Only pass the poNumber path segment - no revision. The response omits 'revision' entirely."
       },
       "response": []
     },
@@ -89,7 +89,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["api", "v1", "po-documents", "4500000233"]
         },
-        "description": "Flat folder layout: stores the document directly under the PO number folder, no REV-xx subfolder. Only pass the poNumber path segment - no revision."
+        "description": "Flat folder layout: stores the document directly under the PO number folder, no revision subfolder. Only pass the poNumber path segment - no revision."
       },
       "response": []
     },

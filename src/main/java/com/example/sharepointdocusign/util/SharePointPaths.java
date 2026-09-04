@@ -2,8 +2,14 @@ package com.example.sharepointdocusign.util;
 
 /**
  * Builds the SharePoint folder path for a PO. Two layouts are supported:
- * - With revision: {poNumber}/REV-{revision}, e.g. "4500000105/REV-02"
+ * - With revision: {poNumber}/{revision}, e.g. "4500000105/02"
  * - Flat (no revision subfolder): {poNumber}, e.g. "4500000233"
+ *
+ * The second segment is stored exactly as the caller sends it - no "REV-"
+ * or similar label is added. Earlier versions prefixed it with "REV-",
+ * assuming that value always meant a PO revision number; real usage showed
+ * that isn't always true (e.g. SAP passing a non-revision code), so this app
+ * makes no assumption about what the value represents.
  */
 public final class SharePointPaths {
 
@@ -13,7 +19,7 @@ public final class SharePointPaths {
     public static String buildFolderPath(String poNumber, String revision) {
         FileValidationUtil.assertSafePathComponent(poNumber, "poNumber");
         FileValidationUtil.assertSafePathComponent(revision, "revision");
-        return poNumber + "/REV-" + revision;
+        return poNumber + "/" + revision;
     }
 
     /** Flat layout: the PO number folder itself contains the documents directly, no revision subfolder. */

@@ -127,7 +127,7 @@ public class MicrosoftGraphClient {
     }
 
     /**
-     * Walks each segment of folderPath (e.g. "4500000105", "REV-02"), creating
+     * Walks each segment of folderPath (e.g. "4500000105", "02"), creating
      * any that don't already exist. A 409 (already exists) is treated as
      * success, so two callers racing to create the same brand-new folder both
      * end up succeeding.

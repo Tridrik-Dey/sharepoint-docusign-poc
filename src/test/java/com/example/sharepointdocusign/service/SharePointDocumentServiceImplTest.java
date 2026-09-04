@@ -36,7 +36,7 @@ class SharePointDocumentServiceImplTest {
                 new GraphDriveItem("id-tmp", "~$Doc-A.pdf", 10L, new GraphFileFacet("application/pdf"), null),
                 new GraphDriveItem("id-b", "Doc-B.pdf", 20L, new GraphFileFacet("application/pdf"), null),
                 new GraphDriveItem("id-a", "Doc-A.pdf", 20L, new GraphFileFacet("application/pdf"), null));
-        when(graphClient.listChildren("4500000105/REV-02")).thenReturn(children);
+        when(graphClient.listChildren("4500000105/02")).thenReturn(children);
         when(graphClient.downloadContent("id-a", "Doc-A.pdf")).thenReturn(VALID_PDF);
         when(graphClient.downloadContent("id-b", "Doc-B.pdf")).thenReturn(VALID_PDF);
 
@@ -51,7 +51,7 @@ class SharePointDocumentServiceImplTest {
         List<GraphDriveItem> children = List.of(
                 new GraphDriveItem("f-1", "SubFolder", null, null, new Object()),
                 new GraphDriveItem("id-txt", "notes.txt", 10L, new GraphFileFacet("text/plain"), null));
-        when(graphClient.listChildren("4500000105/REV-02")).thenReturn(children);
+        when(graphClient.listChildren("4500000105/02")).thenReturn(children);
 
         assertThatThrownBy(() -> serviceUnderTest().fetchDocuments("4500000105", "02"))
                 .isInstanceOf(EmptySharePointFolderException.class);
