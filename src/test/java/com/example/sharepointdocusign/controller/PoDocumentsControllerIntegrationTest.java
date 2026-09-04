@@ -4,12 +4,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -119,5 +121,22 @@ class PoDocumentsControllerIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("DOCUMENT_TOO_LARGE"));
+    }
+
+    /**
+     * Regression test for a real SAP integration bug: a caller sending a
+     * Content-Type the upload endpoint doesn't accept (anything other than
+     * multipart/form-data with a boundary) used to fall through to the
+     * generic 500 handler with no actionable message. This must now come
+     * back as a clean 400 INVALID_REQUEST instead.
+     */
+    @Test
+    void uploadWithUnsupportedContentTypeReturnsCleanBadRequestNotInternalError() throws Exception {
+        mockMvc.perform(post("/api/v1/po-documents/4500000105/02")
+                        .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                        .content("not a multipart body"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_REQUEST"));
     }
 }

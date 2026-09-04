@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -72,6 +73,22 @@ public class GlobalExceptionHandler {
         log.warn("Multipart parsing failed: {}", ex.getMessage());
         return ResponseEntity.badRequest()
                 .body(ErrorResponse.of("INVALID_REQUEST", "The multipart request could not be parsed.", correlationId()));
+    }
+
+    /**
+     * Raised when the request's Content-Type header doesn't match what the
+     * endpoint declares via @PostMapping(consumes=...) - e.g. missing or
+     * malformed "multipart/form-data; boundary=..." on the upload endpoints.
+     * Previously fell through to the generic 500 handler below, which gave
+     * callers no actionable information about what was actually wrong with
+     * their request.
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException ex) {
+        log.warn("Rejected request with unsupported Content-Type: {}", ex.getContentType());
+        return ResponseEntity.badRequest().body(ErrorResponse.of("INVALID_REQUEST",
+                "Content-Type '" + ex.getContentType() + "' is not supported for this endpoint - expected multipart/form-data.",
+                correlationId()));
     }
 
     @ExceptionHandler(Exception.class)
