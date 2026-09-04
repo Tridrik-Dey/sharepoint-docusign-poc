@@ -50,18 +50,18 @@ public class PoDocumentsService {
     public SharePointUploadResult uploadDocument(String poNumber, String revision, MultipartFile document) {
         byte[] content = readBytes(document);
         String fileName = FileValidationUtil.sanitizeFilename(document.getOriginalFilename());
-        FileValidationUtil.validatePdf(content, document.getContentType(), fileName);
+        String contentType = FileValidationUtil.validateSupportedUpload(content, fileName);
         enforceUploadSizeLimit(content, fileName);
-        return sharePointDocumentService.uploadDocument(poNumber, revision, fileName, content, "application/pdf");
+        return sharePointDocumentService.uploadDocument(poNumber, revision, fileName, content, contentType);
     }
 
     /** Flat folder layout: {poNumber} itself, no revision subfolder. */
     public SharePointUploadResult uploadDocument(String poNumber, MultipartFile document) {
         byte[] content = readBytes(document);
         String fileName = FileValidationUtil.sanitizeFilename(document.getOriginalFilename());
-        FileValidationUtil.validatePdf(content, document.getContentType(), fileName);
+        String contentType = FileValidationUtil.validateSupportedUpload(content, fileName);
         enforceUploadSizeLimit(content, fileName);
-        return sharePointDocumentService.uploadDocument(poNumber, fileName, content, "application/pdf");
+        return sharePointDocumentService.uploadDocument(poNumber, fileName, content, contentType);
     }
 
     private DocumentPayload toPayload(SharePointDocument document) {

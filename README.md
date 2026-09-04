@@ -502,12 +502,13 @@ Invalid main document:
 ```
 
 Full list of `errorCode` values: `INVALID_REQUEST`, `INVALID_PDF`,
-`SHAREPOINT_AUTHENTICATION_FAILED`, `SHAREPOINT_FOLDER_NOT_FOUND`,
-`SHAREPOINT_FOLDER_EMPTY`, `SHAREPOINT_ACCESS_DENIED`,
-`SHAREPOINT_DOWNLOAD_FAILED`, `SHAREPOINT_UPLOAD_FAILED`, `TOO_MANY_DOCUMENTS`,
-`DOCUMENT_TOO_LARGE`, `TOTAL_ENVELOPE_SIZE_EXCEEDED`,
-`DOCUSIGN_AUTHENTICATION_FAILED`, `DOCUSIGN_ENVELOPE_CREATION_FAILED`,
-`DOCUSIGN_WEBHOOK_AUTHENTICATION_FAILED`, `INTERNAL_ERROR`.
+`UNSUPPORTED_FILE_TYPE`, `SHAREPOINT_AUTHENTICATION_FAILED`,
+`SHAREPOINT_FOLDER_NOT_FOUND`, `SHAREPOINT_FOLDER_EMPTY`,
+`SHAREPOINT_ACCESS_DENIED`, `SHAREPOINT_DOWNLOAD_FAILED`,
+`SHAREPOINT_UPLOAD_FAILED`, `TOO_MANY_DOCUMENTS`, `DOCUMENT_TOO_LARGE`,
+`TOTAL_ENVELOPE_SIZE_EXCEEDED`, `DOCUSIGN_AUTHENTICATION_FAILED`,
+`DOCUSIGN_ENVELOPE_CREATION_FAILED`, `DOCUSIGN_WEBHOOK_AUTHENTICATION_FAILED`,
+`INTERNAL_ERROR`.
 
 ## 17. Test commands
 
@@ -750,8 +751,19 @@ SharePoint itself**: if a file with the same name already exists in that
 folder, Microsoft Graph auto-renames the new upload (e.g. `Doc.pdf` →
 `Doc 1.pdf`) rather than overwriting it - `fileName` in the response reflects
 whichever name was actually used, and `renamed` is `true` when that happened.
-Documents are validated the same way as everywhere else in this app (`%PDF`
-magic bytes, not just the declared content type) before ever reaching Graph.
+
+**Supported file types**: PDF, Word (`.doc`/`.docx`), Excel (`.xls`/`.xlsx`),
+and images (`.jpg`/`.jpeg`/`.png`) - deliberately not "any file type", to
+keep arbitrary/unsafe files from being pushed into SharePoint through this
+endpoint. PDF and image uploads are additionally checked against their magic
+bytes (not just the declared content type or file extension); `.doc`/`.docx`/
+`.xls`/`.xlsx` are checked by extension and declared content type only, since
+the legacy binary Office format and the ZIP-based OOXML format each share
+magic bytes across several unrelated file types. An unsupported extension is
+rejected with `errorCode: UNSUPPORTED_FILE_TYPE`; a file whose *content*
+doesn't match what its extension claims (e.g. a `.pdf` that isn't really a
+PDF) is rejected with `errorCode: INVALID_PDF` for that specific case, or
+`UNSUPPORTED_FILE_TYPE` for a `.jpg`/`.png` that isn't really an image.
 
 In mock mode, uploads are simulated - logged and hashed, but not actually
 persisted anywhere (mock-mode fixtures are read from the classpath, which
@@ -791,14 +803,15 @@ Fully implemented, all three modes:
   (`DocusignClient`), automatic SharePoint storage
   (`DocusignEnvelopeCompletionService`), profile-gated the same as the rest
   of the real DocuSign integration. See [section 19a](#19a-auto-saving-the-signed-document-docusign-connect-webhook).
-- **Tests** - 141 tests: unit tests, MockMvc controller tests, WireMock tests
+- **Tests** - 154 tests: unit tests, MockMvc controller tests, WireMock tests
   for Microsoft Graph and DocuSign, Spring-context wiring tests (one per
   profile, including the webhook's own) proving each profile activates the
   right combination of real/mock beans, and two full end-to-end tests
   proving the real (non-mock) wiring works together - one for envelope
   creation, one for the signed-document webhook. Covers both the nested
-  `REV-xx` and flat SharePoint folder layouts, and both directions (read and
-  write) of the documents-only endpoint.
+  `REV-xx` and flat SharePoint folder layouts, both directions (read and
+  write) of the documents-only endpoint, and every supported upload file
+  type (PDF, Word, Excel, images).
 - **Postman collection, Dockerfile, docker-compose.yml** for easy local use.
 
 ## Verifying real SharePoint vs. mocked DocuSign

@@ -101,14 +101,60 @@ class PoDocumentsControllerIntegrationTest {
     }
 
     @Test
-    void uploadRejectsNonPdfDocument() throws Exception {
+    void uploadRejectsUnsupportedFileType() throws Exception {
         MockMultipartFile document = new MockMultipartFile(
-                "document", "notes.txt", "application/pdf", "plain text".getBytes());
+                "document", "notes.txt", "text/plain", "plain text".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(document))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("UNSUPPORTED_FILE_TYPE"));
+    }
+
+    @Test
+    void uploadRejectsFileNamedPdfButNotActuallyAPdf() throws Exception {
+        MockMultipartFile document = new MockMultipartFile(
+                "document", "fake.pdf", "application/pdf", "not really a pdf".getBytes());
 
         mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(document))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("INVALID_PDF"));
+    }
+
+    @Test
+    void uploadAcceptsAJpegImage() throws Exception {
+        byte[] jpegBytes = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00, 0x01, 0x02};
+        MockMultipartFile document = new MockMultipartFile("document", "Photo.jpg", "image/jpeg", jpegBytes);
+
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(document))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.fileName").value("Photo.jpg"));
+    }
+
+    @Test
+    void uploadAcceptsAWordDocument() throws Exception {
+        byte[] docxBytes = "fake docx content".getBytes();
+        MockMultipartFile document = new MockMultipartFile(
+                "document", "Amendment.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", docxBytes);
+
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(document))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.fileName").value("Amendment.docx"));
+    }
+
+    @Test
+    void uploadRejectsAFileWithJpgExtensionButWrongMagicBytes() throws Exception {
+        MockMultipartFile document = new MockMultipartFile(
+                "document", "fake.jpg", "image/jpeg", "not really a jpeg".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(document))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("UNSUPPORTED_FILE_TYPE"));
     }
 
     @Test

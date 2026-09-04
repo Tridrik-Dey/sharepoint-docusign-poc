@@ -137,6 +137,30 @@ class PoDocumentsServiceTest {
     }
 
     @Test
+    void uploadResolvesContentTypeForANonPdfSupportedType() {
+        byte[] jpegBytes = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00};
+        MockMultipartFile file = new MockMultipartFile("document", "Photo.jpg", "image/jpeg", jpegBytes);
+        SharePointUploadResult fakeResult = new SharePointUploadResult("item-1", "Photo.jpg", jpegBytes.length, "sha", false);
+        when(sharePointDocumentService.uploadDocument(eq("4500000105"), eq("02"), eq("Photo.jpg"), any(), eq("image/jpeg")))
+                .thenReturn(fakeResult);
+
+        PoDocumentsService service = newService();
+        SharePointUploadResult result = service.uploadDocument("4500000105", "02", file);
+
+        assertThat(result).isEqualTo(fakeResult);
+    }
+
+    @Test
+    void uploadRejectsAnUnsupportedFileExtension() {
+        MockMultipartFile file = new MockMultipartFile("document", "notes.txt", "text/plain", "hello".getBytes());
+
+        PoDocumentsService service = newService();
+
+        assertThatThrownBy(() -> service.uploadDocument("4500000105", "02", file))
+                .isInstanceOf(com.example.sharepointdocusign.exception.UnsupportedFileTypeException.class);
+    }
+
+    @Test
     void uploadRejectsContentOverTheConfiguredLimit() {
         // Limit set below Graph's 4MB ceiling so the *configured* limit is the one that trips.
         ApplicationProperties.Documents tightLimits = new ApplicationProperties.Documents(10, 1, 25, 20);
