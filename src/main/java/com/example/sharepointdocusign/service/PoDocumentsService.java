@@ -32,8 +32,8 @@ public class PoDocumentsService {
         this.documentLimits = applicationProperties.documents();
     }
 
-    public List<DocumentPayload> fetchDocumentPayloads(String poNumber, String revision) {
-        List<SharePointDocument> documents = sharePointDocumentService.fetchAllSupportedDocuments(poNumber, revision);
+    public List<DocumentPayload> fetchDocumentPayloads(String poNumber, String subPath) {
+        List<SharePointDocument> documents = sharePointDocumentService.fetchAllSupportedDocuments(poNumber, subPath);
         return documents.stream()
                 .map(this::toPayload)
                 .toList();
@@ -47,12 +47,12 @@ public class PoDocumentsService {
                 .toList();
     }
 
-    public SharePointUploadResult uploadDocument(String poNumber, String revision, MultipartFile document) {
+    public SharePointUploadResult uploadDocument(String poNumber, String subPath, MultipartFile document) {
         byte[] content = readBytes(document);
         String fileName = FileValidationUtil.sanitizeFilename(document.getOriginalFilename());
         String contentType = FileValidationUtil.validateSupportedUpload(content, fileName);
         enforceUploadSizeLimit(content, fileName);
-        return sharePointDocumentService.uploadDocument(poNumber, revision, fileName, content, contentType);
+        return sharePointDocumentService.uploadDocument(poNumber, subPath, fileName, content, contentType);
     }
 
     /** Flat folder layout: {poNumber} itself, no revision subfolder. */

@@ -28,18 +28,22 @@ public interface SharePointDocumentService {
      * type this app can also store (PDF, Word, Excel, images - see
      * FileValidationUtil.SUPPORTED_UPLOAD_EXTENSIONS) rather than PDF-only.
      * Used by the documents-only read endpoint (GET /api/v1/po-documents/...),
-     * not by DocuSign envelope creation.
+     * not by DocuSign envelope creation. subPath may itself contain multiple
+     * "/"-separated folder levels (e.g. "A1/A2/A3") - the caller (SAP)
+     * controls both the depth and the name of each level.
      */
-    List<SharePointDocument> fetchAllSupportedDocuments(String poNumber, String revision);
+    List<SharePointDocument> fetchAllSupportedDocuments(String poNumber, String subPath);
 
-    /** Flat folder layout counterpart to fetchAllSupportedDocuments(poNumber, revision). */
+    /** Flat folder layout counterpart to fetchAllSupportedDocuments(poNumber, subPath). */
     List<SharePointDocument> fetchAllSupportedDocuments(String poNumber);
 
     /**
-     * Stores one already-validated document into the {poNumber}/{revision}
-     * folder, creating the folder first if it doesn't exist yet.
+     * Stores one already-validated document into the {poNumber}/{subPath}
+     * folder, creating every missing level first. subPath may itself
+     * contain multiple "/"-separated folder levels - see
+     * fetchAllSupportedDocuments above.
      */
-    SharePointUploadResult uploadDocument(String poNumber, String revision, String fileName, byte[] content, String contentType);
+    SharePointUploadResult uploadDocument(String poNumber, String subPath, String fileName, byte[] content, String contentType);
 
     /** Flat folder layout: {poNumber} itself, no revision subfolder. */
     SharePointUploadResult uploadDocument(String poNumber, String fileName, byte[] content, String contentType);

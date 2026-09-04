@@ -51,10 +51,10 @@ public class SharePointDocumentServiceImpl implements SharePointDocumentService 
     }
 
     @Override
-    public List<SharePointDocument> fetchAllSupportedDocuments(String poNumber, String revision) {
-        String folderPath = SharePointPaths.buildFolderPath(poNumber, revision);
+    public List<SharePointDocument> fetchAllSupportedDocuments(String poNumber, String subPath) {
+        String folderPath = SharePointPaths.buildFolderPath(poNumber, subPath);
         log.info("Fetching all supported SharePoint documents from folder path '{}'", folderPath);
-        String description = "PO " + poNumber + " and revision " + revision;
+        String description = "PO " + poNumber + " and folder path " + subPath;
         return fetchFromFolder(folderPath, description, false);
     }
 
@@ -125,8 +125,8 @@ public class SharePointDocumentServiceImpl implements SharePointDocumentService 
     }
 
     @Override
-    public SharePointUploadResult uploadDocument(String poNumber, String revision, String fileName, byte[] content, String contentType) {
-        return uploadToFolder(SharePointPaths.buildFolderPath(poNumber, revision), fileName, content, contentType);
+    public SharePointUploadResult uploadDocument(String poNumber, String subPath, String fileName, byte[] content, String contentType) {
+        return uploadToFolder(SharePointPaths.buildFolderPath(poNumber, subPath), fileName, content, contentType);
     }
 
     @Override

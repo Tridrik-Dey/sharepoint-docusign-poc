@@ -161,6 +161,33 @@ class PoDocumentsServiceTest {
     }
 
     @Test
+    void mapsSharePointDocumentsToBase64PayloadsForAMultiLevelSubPath() {
+        byte[] content = "%PDF-1.4\nnested-doc\n%%EOF".getBytes();
+        SharePointDocument doc = new SharePointDocument("id", "Doc.pdf", "application/pdf", content.length, content, "sha");
+        when(sharePointDocumentService.fetchAllSupportedDocuments("4500000233", "A1/A2/A3/A4")).thenReturn(List.of(doc));
+
+        PoDocumentsService service = newService();
+        List<DocumentPayload> payloads = service.fetchDocumentPayloads("4500000233", "A1/A2/A3/A4");
+
+        assertThat(payloads).hasSize(1);
+        assertThat(payloads.get(0).fileName()).isEqualTo("Doc.pdf");
+    }
+
+    @Test
+    void uploadPassesAMultiLevelSubPathThroughUnchanged() {
+        byte[] content = "%PDF-1.4\nnested-doc\n%%EOF".getBytes();
+        MockMultipartFile file = new MockMultipartFile("document", "Doc.pdf", "application/pdf", content);
+        SharePointUploadResult fakeResult = new SharePointUploadResult("item-1", "Doc.pdf", content.length, "sha", false);
+        when(sharePointDocumentService.uploadDocument(eq("4500000233"), eq("A1/A2/A3/A4"), eq("Doc.pdf"), any(), eq("application/pdf")))
+                .thenReturn(fakeResult);
+
+        PoDocumentsService service = newService();
+        SharePointUploadResult result = service.uploadDocument("4500000233", "A1/A2/A3/A4", file);
+
+        assertThat(result).isEqualTo(fakeResult);
+    }
+
+    @Test
     void uploadRejectsContentOverTheConfiguredLimit() {
         // Limit set below Graph's 4MB ceiling so the *configured* limit is the one that trips.
         ApplicationProperties.Documents tightLimits = new ApplicationProperties.Documents(10, 1, 25, 20);

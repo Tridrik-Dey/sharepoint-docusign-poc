@@ -42,6 +42,22 @@
       "response": []
     },
     {
+      "name": "Get PO Documents - multi-level subfolder (SAP-managed nesting)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/po-documents/4500000233/A1/A2/A3",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "po-documents", "4500000233", "A1", "A2", "A3"]
+        },
+        "description": "Everything after the PO number can be any number of '/'-separated folder levels (not just one revision segment) - SAP controls both the depth and each level's name, e.g. a subfolder of a subfolder. The response's 'revision' field echoes the full path back verbatim ('A1/A2/A3' here)."
+      },
+      "response": []
+    },
+    {
       "name": "Upload PO Document - store into SharePoint, no DocuSign",
       "request": {
         "method": "POST",
@@ -90,6 +106,32 @@
           "path": ["api", "v1", "po-documents", "4500000233"]
         },
         "description": "Flat folder layout: stores the document directly under the PO number folder, no revision subfolder. Only pass the poNumber path segment - no revision."
+      },
+      "response": []
+    },
+    {
+      "name": "Upload PO Document - multi-level subfolder (SAP-managed nesting)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-Api-Key", "value": "{{apiKey}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "document",
+              "type": "file",
+              "src": "sample-files/Purchase-Order-4500000105.pdf"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/po-documents/4500000233/A1/A2/A3",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "po-documents", "4500000233", "A1", "A2", "A3"]
+        },
+        "description": "Same multi-level nesting as the GET above - every missing level is created automatically, same as a single revision folder always was."
       },
       "response": []
     },

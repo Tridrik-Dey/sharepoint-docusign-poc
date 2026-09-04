@@ -30,6 +30,29 @@ class SharePointPathsTest {
     }
 
     @Test
+    void buildsFolderPathFromMultiLevelSubPath() {
+        assertThat(SharePointPaths.buildFolderPath("4500000233", "A1/A2"))
+                .isEqualTo("4500000233/A1/A2");
+        assertThat(SharePointPaths.buildFolderPath("4500000233", "A1/A2/A3/A4"))
+                .isEqualTo("4500000233/A1/A2/A3/A4");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "../A2", "A1/..", "A1/../A2", "A1/A2/..", "A1/A2/../A3",
+            "A1/A..2/../A3", "a\\b/A2", "A1/a\\b", "%2e%2e%2f/A2", "A1/%2F"})
+    void rejectsPathTraversalInAnyLevelOfAMultiSegmentSubPath(String malicious) {
+        assertThatThrownBy(() -> SharePointPaths.buildFolderPath("4500000233", malicious))
+                .isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
+    void rejectsBlankLevelWithinAMultiSegmentSubPath() {
+        assertThatThrownBy(() -> SharePointPaths.buildFolderPath("4500000233", "A1//A2"))
+                .isInstanceOf(InvalidRequestException.class);
+    }
+
+    @Test
     void rejectsBlankPoNumber() {
         assertThatThrownBy(() -> SharePointPaths.buildFolderPath(" ", "02"))
                 .isInstanceOf(InvalidRequestException.class);

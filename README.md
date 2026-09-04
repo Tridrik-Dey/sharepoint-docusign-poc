@@ -655,6 +655,16 @@ GET /api/v1/po-documents/{poNumber}/{revision}
 Header: X-Api-Key: ...
 ```
 
+`{revision}` may itself be several `/`-separated folder levels, not just one
+(e.g. `GET /api/v1/po-documents/4500000233/A1/A2/A3` for a subfolder of a
+subfolder of a subfolder) - SAP fully controls both how many levels it
+creates and what each level is named. This is additive: a single-level
+`{revision}` keeps working exactly as before. Every level is validated the
+same way a single revision always was (letters, digits, hyphens and
+underscores only, no `..`) - allowing more levels never weakens that check,
+it's just applied per level. The `revision` field in the JSON response below
+echoes the full value back verbatim, e.g. `"revision": "A1/A2/A3"`.
+
 ```json
 {
   "success": true,
@@ -729,6 +739,11 @@ POST /api/v1/po-documents/{poNumber}/{revision}
 Header: X-Api-Key: ...
 Body: multipart/form-data, field name "document" = the file
 ```
+
+Same as `GET` above, `{revision}` may be several `/`-separated levels (e.g.
+`POST /api/v1/po-documents/4500000233/A1/A2/A3`), fully SAP-controlled - every
+missing level is created automatically, same as a single revision folder
+always was.
 
 ```json
 {
@@ -810,16 +825,17 @@ Fully implemented, all three modes:
   (`DocusignClient`), automatic SharePoint storage
   (`DocusignEnvelopeCompletionService`), profile-gated the same as the rest
   of the real DocuSign integration. See [section 19a](#19a-auto-saving-the-signed-document-docusign-connect-webhook).
-- **Tests** - 157 tests: unit tests, MockMvc controller tests, WireMock tests
+- **Tests** - 182 tests: unit tests, MockMvc controller tests, WireMock tests
   for Microsoft Graph and DocuSign, Spring-context wiring tests (one per
   profile, including the webhook's own) proving each profile activates the
   right combination of real/mock beans, and two full end-to-end tests
   proving the real (non-mock) wiring works together - one for envelope
   creation, one for the signed-document webhook. Covers both the nested
-  (`{poNumber}/{revision}`) and flat SharePoint folder layouts, both directions (read and
-  write) of the documents-only endpoint - including that GET returns every
-  supported file type while envelope creation stays PDF-only - and every
-  supported upload file
+  (`{poNumber}/{revision}`, itself now arbitrary-depth - see the
+  documents-only endpoint section above) and flat SharePoint folder layouts,
+  both directions (read and write) of the documents-only endpoint -
+  including that GET returns every supported file type while envelope
+  creation stays PDF-only - and every supported upload file
   type (PDF, Word, Excel, images).
 - **Postman collection, Dockerfile, docker-compose.yml** for easy local use.
 

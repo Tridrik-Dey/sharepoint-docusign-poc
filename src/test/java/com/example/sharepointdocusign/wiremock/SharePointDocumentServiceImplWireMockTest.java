@@ -229,6 +229,41 @@ class SharePointDocumentServiceImplWireMockTest {
                 "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "application/pdf");
     }
 
+    @Test
+    void fetchAllSupportedDocumentsResolvesAMultiLevelSubPathAgainstGraph() {
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000233/A1/A2/A3:/children"))
+                .willReturn(okJson("""
+                        {
+                          "value": [
+                            {"id": "id-a4", "name": "Level-A4-Doc.pdf", "file": {"mimeType": "application/pdf"}}
+                          ]
+                        }
+                        """)));
+
+        byte[] content = "%PDF-1.4\nlevel-a4\n%%EOF".getBytes();
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-a4/content"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/pdf").withBody(content)));
+
+        List<SharePointDocument> documents = service.fetchAllSupportedDocuments("4500000233", "A1/A2/A3");
+
+        assertThat(documents).extracting(SharePointDocument::fileName).containsExactly("Level-A4-Doc.pdf");
+    }
+
+    @Test
+    void uploadsDocumentEndToEndForAMultiLevelSubPath() throws Exception {
+        byte[] content = "%PDF-1.4\nnested-doc\n%%EOF".getBytes();
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000233/A1/A2/A3/A4/New-Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-nested\",\"name\":\"New-Doc.pdf\",\"size\":" + content.length + "}")));
+
+        SharePointUploadResult result = service.uploadDocument("4500000233", "A1/A2/A3/A4", "New-Doc.pdf", content, "application/pdf");
+
+        assertThat(result.itemId()).isEqualTo("item-nested");
+        assertThat(result.fileName()).isEqualTo("New-Doc.pdf");
+        assertThat(result.renamed()).isFalse();
+        assertThat(result.sha256()).isEqualTo(sha256Hex(content));
+    }
+
     private String sha256Hex(byte[] content) throws Exception {
         return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(content));
     }

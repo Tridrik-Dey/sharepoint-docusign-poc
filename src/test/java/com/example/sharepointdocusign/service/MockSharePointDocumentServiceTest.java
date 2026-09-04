@@ -107,4 +107,27 @@ class MockSharePointDocumentServiceTest {
         assertThat(result.fileName()).isEqualTo("New-Doc.pdf");
         assertThat(result.renamed()).isFalse();
     }
+
+    @Test
+    void fetchAllSupportedDocumentsResolvesAMultiLevelSubPath() {
+        List<SharePointDocument> documents = service.fetchAllSupportedDocuments("4500000233", "A1/A2");
+        assertThat(documents).extracting(SharePointDocument::fileName).containsExactly("Level-A2-Doc.pdf");
+
+        List<SharePointDocument> deeper = service.fetchAllSupportedDocuments("4500000233", "A1/A2/A3/A4");
+        assertThat(deeper).extracting(SharePointDocument::fileName).containsExactly("Level-A4-Doc.pdf");
+    }
+
+    @Test
+    void simulatesUploadForAMultiLevelSubPathWithoutTouchingTheClasspath() {
+        byte[] content = "%PDF-1.4\nnested-doc\n%%EOF".getBytes();
+
+        SharePointUploadResult result = service.uploadDocument("4500000233", "A1/A2/A3/A4", "New-Doc.pdf", content, "application/pdf");
+
+        assertThat(result.fileName()).isEqualTo("New-Doc.pdf");
+        assertThat(result.renamed()).isFalse();
+        // Confirms nothing was actually persisted: fetching the same nested folder still only returns the real fixture.
+        assertThat(service.fetchAllSupportedDocuments("4500000233", "A1/A2/A3/A4"))
+                .extracting(SharePointDocument::fileName)
+                .doesNotContain("New-Doc.pdf");
+    }
 }

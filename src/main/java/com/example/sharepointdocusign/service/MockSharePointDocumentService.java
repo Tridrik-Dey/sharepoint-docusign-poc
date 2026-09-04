@@ -28,8 +28,9 @@ import java.util.UUID;
 /**
  * Test-double for SharePointDocumentService, active on the "mock" profile.
  * Reads PDFs from src/main/resources/mock-sharepoint/... instead of calling
- * Microsoft Graph - supports both the {poNumber}/{revision} layout and
- * the flat {poNumber}-only layout.
+ * Microsoft Graph - supports both the {poNumber}/{subPath} layout (subPath
+ * may itself contain multiple "/"-separated levels) and the flat
+ * {poNumber}-only layout.
  */
 @Service
 @Profile("mock")
@@ -63,10 +64,10 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
     }
 
     @Override
-    public List<SharePointDocument> fetchAllSupportedDocuments(String poNumber, String revision) {
-        String folderPath = SharePointPaths.buildFolderPath(poNumber, revision);
+    public List<SharePointDocument> fetchAllSupportedDocuments(String poNumber, String subPath) {
+        String folderPath = SharePointPaths.buildFolderPath(poNumber, subPath);
         log.info("[MOCK] Fetching all supported SharePoint documents from folder path '{}'", folderPath);
-        String description = "PO " + poNumber + " and revision " + revision;
+        String description = "PO " + poNumber + " and folder path " + subPath;
         return fetchFromFolder(folderPath, poNumber, description, false);
     }
 
@@ -158,8 +159,8 @@ public class MockSharePointDocumentService implements SharePointDocumentService 
      * observed against real SharePoint (sharepoint-test or local profile).
      */
     @Override
-    public SharePointUploadResult uploadDocument(String poNumber, String revision, String fileName, byte[] content, String contentType) {
-        return simulateUpload(SharePointPaths.buildFolderPath(poNumber, revision), fileName, content);
+    public SharePointUploadResult uploadDocument(String poNumber, String subPath, String fileName, byte[] content, String contentType) {
+        return simulateUpload(SharePointPaths.buildFolderPath(poNumber, subPath), fileName, content);
     }
 
     @Override

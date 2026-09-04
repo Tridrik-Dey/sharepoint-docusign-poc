@@ -40,21 +40,29 @@ public class PoDocumentsController {
         this.poDocumentsService = poDocumentsService;
     }
 
-    @GetMapping("/api/v1/po-documents/{poNumber}/{revision}")
+    /**
+     * subPath may itself contain multiple "/"-separated folder levels (e.g.
+     * "A1/A2/A3", not just a single revision value) - SAP fully controls
+     * both the depth and the name of each level. The response's "revision"
+     * field echoes subPath back exactly as received, whether that's a single
+     * value or a multi-level path.
+     */
+    @GetMapping("/api/v1/po-documents/{poNumber}/{*subPath}")
     public ResponseEntity<PoDocumentsResponse> getPoDocuments(
-            @PathVariable String poNumber, @PathVariable String revision) {
+            @PathVariable String poNumber, @PathVariable String subPath) {
 
+        String cleanSubPath = stripLeadingSlash(subPath);
         String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
-        log.info("Received PO documents request poNumber={} revision={} correlationId={}",
-                poNumber, revision, correlationId);
+        log.info("Received PO documents request poNumber={} subPath={} correlationId={}",
+                poNumber, cleanSubPath, correlationId);
 
         try {
-            List<DocumentPayload> documents = poDocumentsService.fetchDocumentPayloads(poNumber, revision);
-            return ResponseEntity.ok(PoDocumentsResponse.success(poNumber, revision, documents, correlationId));
+            List<DocumentPayload> documents = poDocumentsService.fetchDocumentPayloads(poNumber, cleanSubPath);
+            return ResponseEntity.ok(PoDocumentsResponse.success(poNumber, cleanSubPath, documents, correlationId));
         } catch (PoEnvelopeException ex) {
             log.warn("Request failed with errorCode={} message={}", ex.errorCode(), ex.getMessage());
             return ResponseEntity.status(ex.httpStatus()).body(
-                    PoDocumentsResponse.failure(poNumber, revision, ex.errorCode(), ex.getMessage(), correlationId));
+                    PoDocumentsResponse.failure(poNumber, cleanSubPath, ex.errorCode(), ex.getMessage(), correlationId));
         }
     }
 
@@ -77,27 +85,31 @@ public class PoDocumentsController {
     }
 
     /**
-     * Stores one document into the {poNumber}/{revision} SharePoint
-     * folder (creating it first if it doesn't exist yet). One file per call -
-     * callers with multiple files call this once per file. No DocuSign or
-     * envelope logic is involved.
+     * Stores one document into the {poNumber}/{subPath} SharePoint folder
+     * (creating every missing level first). subPath may itself contain
+     * multiple "/"-separated folder levels (e.g. "A1/A2/A3") - SAP fully
+     * controls both the depth and the name of each level. One file per
+     * call - callers with multiple files call this once per file. No
+     * DocuSign or envelope logic is involved. The response's "revision"
+     * field echoes subPath back exactly as received.
      */
-    @PostMapping(path = "/api/v1/po-documents/{poNumber}/{revision}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(path = "/api/v1/po-documents/{poNumber}/{*subPath}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<PoDocumentUploadResponse> uploadPoDocument(
-            @PathVariable String poNumber, @PathVariable String revision, @RequestPart("document") MultipartFile document) {
+            @PathVariable String poNumber, @PathVariable String subPath, @RequestPart("document") MultipartFile document) {
 
+        String cleanSubPath = stripLeadingSlash(subPath);
         String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
-        log.info("Received PO document upload request poNumber={} revision={} correlationId={}",
-                poNumber, revision, correlationId);
+        log.info("Received PO document upload request poNumber={} subPath={} correlationId={}",
+                poNumber, cleanSubPath, correlationId);
 
         try {
-            SharePointUploadResult result = poDocumentsService.uploadDocument(poNumber, revision, document);
+            SharePointUploadResult result = poDocumentsService.uploadDocument(poNumber, cleanSubPath, document);
             return ResponseEntity.ok(PoDocumentUploadResponse.success(
-                    poNumber, revision, result.fileName(), result.size(), result.sha256(), result.renamed(), correlationId));
+                    poNumber, cleanSubPath, result.fileName(), result.size(), result.sha256(), result.renamed(), correlationId));
         } catch (PoEnvelopeException ex) {
             log.warn("Request failed with errorCode={} message={}", ex.errorCode(), ex.getMessage());
             return ResponseEntity.status(ex.httpStatus()).body(
-                    PoDocumentUploadResponse.failure(poNumber, revision, ex.errorCode(), ex.getMessage(), correlationId));
+                    PoDocumentUploadResponse.failure(poNumber, cleanSubPath, ex.errorCode(), ex.getMessage(), correlationId));
         }
     }
 
@@ -119,5 +131,10 @@ public class PoDocumentsController {
             return ResponseEntity.status(ex.httpStatus()).body(
                     PoDocumentUploadResponse.failure(poNumber, null, ex.errorCode(), ex.getMessage(), correlationId));
         }
+    }
+
+    /** Spring's {*subPath} catch-all capture includes the leading "/" (e.g. "/A1/A2") - drop it for a clean value. */
+    private String stripLeadingSlash(String subPath) {
+        return (subPath != null && subPath.startsWith("/")) ? subPath.substring(1) : subPath;
     }
 }

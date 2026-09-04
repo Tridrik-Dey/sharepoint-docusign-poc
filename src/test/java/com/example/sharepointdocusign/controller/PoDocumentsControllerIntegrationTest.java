@@ -199,4 +199,84 @@ class PoDocumentsControllerIntegrationTest {
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("INVALID_REQUEST"));
     }
+
+    /**
+     * Regression test for a real SAP integration bug Giorgio hit: a 3rd
+     * folder level (a subfolder of a subfolder) used to fall through to the
+     * generic 500 handler because the endpoint only ever declared a single
+     * {revision} path variable. Both a 3-level and a much deeper path must
+     * now succeed, with the full subPath echoed back verbatim in "revision".
+     */
+    @Test
+    void returnsDocumentsForAThreeLevelSubPath() throws Exception {
+        mockMvc.perform(get("/api/v1/po-documents/4500000233/A1/A2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.poNumber").value("4500000233"))
+                .andExpect(jsonPath("$.revision").value("A1/A2"))
+                .andExpect(jsonPath("$.documents", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.documents[0].fileName").value("Level-A2-Doc.pdf"));
+    }
+
+    @Test
+    void returnsDocumentsForAFiveLevelSubPath() throws Exception {
+        mockMvc.perform(get("/api/v1/po-documents/4500000233/A1/A2/A3/A4"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.poNumber").value("4500000233"))
+                .andExpect(jsonPath("$.revision").value("A1/A2/A3/A4"))
+                .andExpect(jsonPath("$.documents", org.hamcrest.Matchers.hasSize(1)))
+                .andExpect(jsonPath("$.documents[0].fileName").value("Level-A4-Doc.pdf"));
+    }
+
+    @Test
+    void uploadsDocumentForAThreeLevelSubPath() throws Exception {
+        MockMultipartFile document = new MockMultipartFile(
+                "document", "New-Doc.pdf", "application/pdf", "%PDF-1.4\nnew\n%%EOF".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000233/A1/A2").file(document))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.poNumber").value("4500000233"))
+                .andExpect(jsonPath("$.revision").value("A1/A2"))
+                .andExpect(jsonPath("$.fileName").value("New-Doc.pdf"));
+    }
+
+    @Test
+    void uploadsDocumentForAFiveLevelSubPath() throws Exception {
+        MockMultipartFile document = new MockMultipartFile(
+                "document", "New-Doc.pdf", "application/pdf", "%PDF-1.4\nnew\n%%EOF".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000233/A1/A2/A3/A4").file(document))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.revision").value("A1/A2/A3/A4"))
+                .andExpect(jsonPath("$.fileName").value("New-Doc.pdf"));
+    }
+
+    /** Path traversal within a deeper level must still be rejected, not just at the first level. */
+    @Test
+    void rejectsPathTraversalWithinADeeperSubPathLevel() throws Exception {
+        mockMvc.perform(get("/api/v1/po-documents/4500000233/A1/../etc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_REQUEST"));
+    }
+
+    /** The existing single-extra-segment ("revision") case must keep routing and behaving exactly as before. */
+    @Test
+    void stillRoutesTheExistingSingleSegmentRevisionCase() throws Exception {
+        mockMvc.perform(get("/api/v1/po-documents/4500000105/02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.revision").value("02"));
+    }
+
+    /** The flat single-poNumber case must not be swallowed by the new {*subPath} catch-all. */
+    @Test
+    void flatFolderCaseIsNotSwallowedByTheCatchAllRoute() throws Exception {
+        mockMvc.perform(get("/api/v1/po-documents/8000000000"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.poNumber").value("8000000000"))
+                .andExpect(jsonPath("$.revision").doesNotExist());
+    }
 }
