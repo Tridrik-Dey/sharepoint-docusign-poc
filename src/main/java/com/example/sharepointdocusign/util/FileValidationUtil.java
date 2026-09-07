@@ -24,21 +24,24 @@ public final class FileValidationUtil {
      * File types accepted by the SAP write-back endpoint (POST
      * /api/v1/po-documents/...), mapped to the Content-Type stored with the
      * document in SharePoint. PDF and image formats are additionally checked
-     * against their magic bytes below; DOC/DOCX/XLS/XLSX are not (the old
-     * binary Office format and the ZIP-based OOXML format each share magic
-     * bytes across several unrelated file types, so extension + declared
-     * content type is the practical check for those - a known, documented
-     * simplification).
+     * against their magic bytes below; DOC/DOCX/XLS/XLSX/PPT/PPTX/TXT are not
+     * (the old binary Office format and the ZIP-based OOXML format each
+     * share magic bytes across several unrelated file types, and plain text
+     * has no magic bytes at all, so extension + declared content type is the
+     * practical check for those - a known, documented simplification).
      */
-    private static final Map<String, String> SUPPORTED_UPLOAD_EXTENSIONS = Map.of(
-            "pdf", "application/pdf",
-            "doc", "application/msword",
-            "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "xls", "application/vnd.ms-excel",
-            "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "jpg", "image/jpeg",
-            "jpeg", "image/jpeg",
-            "png", "image/png");
+    private static final Map<String, String> SUPPORTED_UPLOAD_EXTENSIONS = Map.ofEntries(
+            Map.entry("pdf", "application/pdf"),
+            Map.entry("doc", "application/msword"),
+            Map.entry("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            Map.entry("xls", "application/vnd.ms-excel"),
+            Map.entry("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            Map.entry("ppt", "application/vnd.ms-powerpoint"),
+            Map.entry("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+            Map.entry("txt", "text/plain"),
+            Map.entry("jpg", "image/jpeg"),
+            Map.entry("jpeg", "image/jpeg"),
+            Map.entry("png", "image/png"));
 
     private FileValidationUtil() {
     }

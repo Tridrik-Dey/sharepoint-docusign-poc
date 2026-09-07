@@ -152,12 +152,42 @@ class PoDocumentsServiceTest {
 
     @Test
     void uploadRejectsAnUnsupportedFileExtension() {
-        MockMultipartFile file = new MockMultipartFile("document", "notes.txt", "text/plain", "hello".getBytes());
+        MockMultipartFile file = new MockMultipartFile("document", "archive.zip", "application/zip", "zip content".getBytes());
 
         PoDocumentsService service = newService();
 
         assertThatThrownBy(() -> service.uploadDocument("4500000105", "02", file))
                 .isInstanceOf(com.example.sharepointdocusign.exception.UnsupportedFileTypeException.class);
+    }
+
+    @Test
+    void uploadResolvesContentTypeForATxtFile() {
+        byte[] content = "hello".getBytes();
+        MockMultipartFile file = new MockMultipartFile("document", "notes.txt", "text/plain", content);
+        SharePointUploadResult fakeResult = new SharePointUploadResult("item-1", "notes.txt", content.length, "sha", false);
+        when(sharePointDocumentService.uploadDocument(eq("4500000105"), eq("02"), eq("notes.txt"), any(), eq("text/plain")))
+                .thenReturn(fakeResult);
+
+        PoDocumentsService service = newService();
+        SharePointUploadResult result = service.uploadDocument("4500000105", "02", file);
+
+        assertThat(result).isEqualTo(fakeResult);
+    }
+
+    @Test
+    void uploadResolvesContentTypeForAPptxFile() {
+        byte[] content = "ooxml-pptx".getBytes();
+        MockMultipartFile file = new MockMultipartFile("document", "Slides.pptx",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation", content);
+        SharePointUploadResult fakeResult = new SharePointUploadResult("item-1", "Slides.pptx", content.length, "sha", false);
+        when(sharePointDocumentService.uploadDocument(eq("4500000105"), eq("02"), eq("Slides.pptx"), any(),
+                eq("application/vnd.openxmlformats-officedocument.presentationml.presentation")))
+                .thenReturn(fakeResult);
+
+        PoDocumentsService service = newService();
+        SharePointUploadResult result = service.uploadDocument("4500000105", "02", file);
+
+        assertThat(result).isEqualTo(fakeResult);
     }
 
     @Test

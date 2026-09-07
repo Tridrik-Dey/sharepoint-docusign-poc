@@ -77,9 +77,10 @@ class MockSharePointDocumentServiceTest {
 
         List<SharePointDocument> allSupported = service.fetchAllSupportedDocuments("6000000000", "01");
         assertThat(allSupported).extracting(SharePointDocument::fileName)
-                .containsExactly("Amendment.docx", "Photo.jpg", "Spec.pdf");
+                .containsExactly("Amendment.docx", "notes.txt", "Photo.jpg", "Spec.pdf");
         assertThat(allSupported).extracting(SharePointDocument::contentType).containsExactlyInAnyOrder(
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "application/pdf");
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain",
+                "image/jpeg", "application/pdf");
     }
 
     @Test

@@ -45,13 +45,15 @@ class PoDocumentsControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/po-documents/6000000000/01"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.documents", org.hamcrest.Matchers.hasSize(3)))
+                .andExpect(jsonPath("$.documents", org.hamcrest.Matchers.hasSize(4)))
                 .andExpect(jsonPath("$.documents[0].fileName").value("Amendment.docx"))
                 .andExpect(jsonPath("$.documents[0].contentType")
                         .value("application/vnd.openxmlformats-officedocument.wordprocessingml.document"))
-                .andExpect(jsonPath("$.documents[1].fileName").value("Photo.jpg"))
-                .andExpect(jsonPath("$.documents[1].contentType").value("image/jpeg"))
-                .andExpect(jsonPath("$.documents[2].fileName").value("Spec.pdf"));
+                .andExpect(jsonPath("$.documents[1].fileName").value("notes.txt"))
+                .andExpect(jsonPath("$.documents[1].contentType").value("text/plain"))
+                .andExpect(jsonPath("$.documents[2].fileName").value("Photo.jpg"))
+                .andExpect(jsonPath("$.documents[2].contentType").value("image/jpeg"))
+                .andExpect(jsonPath("$.documents[3].fileName").value("Spec.pdf"));
     }
 
     @Test
@@ -71,9 +73,11 @@ class PoDocumentsControllerIntegrationTest {
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.poNumber").value("8000000000"))
                 .andExpect(jsonPath("$.revision").doesNotExist())
-                .andExpect(jsonPath("$.documents", org.hamcrest.Matchers.hasSize(2)))
-                .andExpect(jsonPath("$.documents[0].fileName").value("Valid-Doc-A.pdf"))
-                .andExpect(jsonPath("$.documents[0].contentBase64").exists());
+                .andExpect(jsonPath("$.documents", org.hamcrest.Matchers.hasSize(3)))
+                .andExpect(jsonPath("$.documents[0].fileName").value("notes.txt"))
+                .andExpect(jsonPath("$.documents[1].fileName").value("Valid-Doc-A.pdf"))
+                .andExpect(jsonPath("$.documents[1].contentBase64").exists())
+                .andExpect(jsonPath("$.documents[2].fileName").value("Valid-Doc-B.pdf"));
     }
 
     @Test
@@ -117,12 +121,41 @@ class PoDocumentsControllerIntegrationTest {
     @Test
     void uploadRejectsUnsupportedFileType() throws Exception {
         MockMultipartFile document = new MockMultipartFile(
-                "document", "notes.txt", "text/plain", "plain text".getBytes());
+                "document", "archive.zip", "application/zip", "zip content".getBytes());
 
         mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(document))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("UNSUPPORTED_FILE_TYPE"));
+    }
+
+    @Test
+    void uploadAcceptsATxtFile() throws Exception {
+        MockMultipartFile document = new MockMultipartFile(
+                "document", "notes.txt", "text/plain", "hello".getBytes());
+
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(document))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.fileName").value("notes.txt"));
+    }
+
+    @Test
+    void uploadAcceptsAPptAndPptxFile() throws Exception {
+        MockMultipartFile ppt = new MockMultipartFile(
+                "document", "Slides.ppt", "application/vnd.ms-powerpoint", "legacy-ppt".getBytes());
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(ppt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.fileName").value("Slides.ppt"));
+
+        MockMultipartFile pptx = new MockMultipartFile(
+                "document", "Slides.pptx",
+                "application/vnd.openxmlformats-officedocument.presentationml.presentation", "ooxml-pptx".getBytes());
+        mockMvc.perform(multipart("/api/v1/po-documents/4500000105/02").file(pptx))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.fileName").value("Slides.pptx"));
     }
 
     @Test

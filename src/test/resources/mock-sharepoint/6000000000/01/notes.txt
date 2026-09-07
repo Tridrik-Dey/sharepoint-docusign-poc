@@ -1,1 +1,1 @@
-plain text, should be excluded from fetchAllSupportedDocuments too
+plain text - excluded from fetchDocuments (PDF-only) but included in fetchAllSupportedDocuments

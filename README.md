@@ -685,7 +685,8 @@ echoes the full value back verbatim, e.g. `"revision": "A1/A2/A3"`.
 This reuses the same folder-path computation and SHA-256 verification as the
 envelope endpoint, but **eligibility filtering is broader here**: this
 endpoint returns every file type this app can also store (PDF, Word, Excel,
-images - see the upload section below), not just PDFs. Envelope creation
+PowerPoint, plain text, images - see the upload section below), not just
+PDFs. Envelope creation
 (`POST /api/v1/po-envelopes`) still only bundles PDFs into a DocuSign
 envelope - it needs real PDFs for the anchor-tag signing flow, and changing
 that would be new, untested territory for how DocuSign handles non-PDF
@@ -775,13 +776,15 @@ folder, Microsoft Graph auto-renames the new upload (e.g. `Doc.pdf` →
 whichever name was actually used, and `renamed` is `true` when that happened.
 
 **Supported file types**: PDF, Word (`.doc`/`.docx`), Excel (`.xls`/`.xlsx`),
-and images (`.jpg`/`.jpeg`/`.png`) - deliberately not "any file type", to
+PowerPoint (`.ppt`/`.pptx`), plain text (`.txt`), and images
+(`.jpg`/`.jpeg`/`.png`) - deliberately not "any file type", to
 keep arbitrary/unsafe files from being pushed into SharePoint through this
 endpoint. PDF and image uploads are additionally checked against their magic
 bytes (not just the declared content type or file extension); `.doc`/`.docx`/
-`.xls`/`.xlsx` are checked by extension and declared content type only, since
-the legacy binary Office format and the ZIP-based OOXML format each share
-magic bytes across several unrelated file types. An unsupported extension is
+`.xls`/`.xlsx`/`.ppt`/`.pptx`/`.txt` are checked by extension and declared
+content type only, since the legacy binary Office format and the ZIP-based
+OOXML format each share magic bytes across several unrelated file types, and
+plain text has no magic bytes at all. An unsupported extension is
 rejected with `errorCode: UNSUPPORTED_FILE_TYPE`; a file whose *content*
 doesn't match what its extension claims (e.g. a `.pdf` that isn't really a
 PDF) is rejected with `errorCode: INVALID_PDF` for that specific case, or
@@ -836,7 +839,7 @@ Fully implemented, all three modes:
   both directions (read and write) of the documents-only endpoint -
   including that GET returns every supported file type while envelope
   creation stays PDF-only - and every supported upload file
-  type (PDF, Word, Excel, images).
+  type (PDF, Word, Excel, PowerPoint, plain text, images).
 - **Postman collection, Dockerfile, docker-compose.yml** for easy local use.
 
 ## Verifying real SharePoint vs. mocked DocuSign

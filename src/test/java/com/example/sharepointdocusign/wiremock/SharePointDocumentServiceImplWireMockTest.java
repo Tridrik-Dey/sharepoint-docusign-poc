@@ -201,7 +201,8 @@ class SharePointDocumentServiceImplWireMockTest {
                             {"id": "id-pdf", "name": "Spec.pdf", "file": {"mimeType": "application/pdf"}},
                             {"id": "id-docx", "name": "Amendment.docx", "file": {"mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}},
                             {"id": "id-jpg", "name": "Photo.jpg", "file": {"mimeType": "image/jpeg"}},
-                            {"id": "id-txt", "name": "notes.txt", "file": {"mimeType": "text/plain"}}
+                            {"id": "id-txt", "name": "notes.txt", "file": {"mimeType": "text/plain"}},
+                            {"id": "id-csv", "name": "data.csv", "file": {"mimeType": "text/csv"}}
                           ]
                         }
                         """)));
@@ -209,6 +210,7 @@ class SharePointDocumentServiceImplWireMockTest {
         byte[] pdfBytes = "%PDF-1.4\n%%EOF".getBytes();
         byte[] docxBytes = "fake docx bytes".getBytes();
         byte[] jpegBytes = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 0x00};
+        byte[] txtBytes = "plain text content".getBytes();
 
         stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-pdf/content"))
                 .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/pdf").withBody(pdfBytes)));
@@ -218,15 +220,19 @@ class SharePointDocumentServiceImplWireMockTest {
                         .withBody(docxBytes)));
         stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-jpg/content"))
                 .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "image/jpeg").withBody(jpegBytes)));
+        stubFor(get(urlEqualTo("/v1.0/drives/test-drive-id/items/id-txt/content"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "text/plain").withBody(txtBytes)));
 
         List<SharePointDocument> documents = service.fetchAllSupportedDocuments("6000000000", "01");
 
-        // notes.txt is excluded (not in the upload allowlist), even though the folder listing included it -
-        // its content is never even downloaded (no stub registered for id-txt, so a download attempt would fail the test).
+        // data.csv is excluded (still not in the upload allowlist), even though the folder listing included it -
+        // its content is never even downloaded (no stub registered for id-csv, so a download attempt would fail the test).
+        // notes.txt IS now included, since .txt was added to the allowlist.
         assertThat(documents).extracting(SharePointDocument::fileName)
-                .containsExactly("Amendment.docx", "Photo.jpg", "Spec.pdf");
+                .containsExactly("Amendment.docx", "notes.txt", "Photo.jpg", "Spec.pdf");
         assertThat(documents).extracting(SharePointDocument::contentType).containsExactlyInAnyOrder(
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "application/pdf");
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain",
+                "image/jpeg", "application/pdf");
     }
 
     @Test

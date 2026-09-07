@@ -83,8 +83,17 @@ class FileValidationUtilTest {
 
     @Test
     void validateSupportedUploadRejectsAnUnknownExtension() {
-        assertThatThrownBy(() -> FileValidationUtil.validateSupportedUpload("hello".getBytes(), "notes.txt"))
+        assertThatThrownBy(() -> FileValidationUtil.validateSupportedUpload("hello".getBytes(), "archive.zip"))
                 .isInstanceOf(UnsupportedFileTypeException.class);
+    }
+
+    @Test
+    void validateSupportedUploadAcceptsTxtPptAndPptx() {
+        assertThat(FileValidationUtil.validateSupportedUpload("hello".getBytes(), "notes.txt")).isEqualTo("text/plain");
+        assertThat(FileValidationUtil.validateSupportedUpload("legacy-ppt".getBytes(), "slides.ppt"))
+                .isEqualTo("application/vnd.ms-powerpoint");
+        assertThat(FileValidationUtil.validateSupportedUpload("ooxml-pptx".getBytes(), "slides.pptx"))
+                .isEqualTo("application/vnd.openxmlformats-officedocument.presentationml.presentation");
     }
 
     @Test
