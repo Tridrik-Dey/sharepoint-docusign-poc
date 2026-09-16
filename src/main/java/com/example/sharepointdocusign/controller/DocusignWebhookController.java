@@ -32,8 +32,9 @@ import java.io.IOException;
  * GlobalExceptionHandler's catch-all - but no webhook logic ever runs.)
  *
  * Nothing about the webhook payload's shape or content is trusted beyond the
- * envelope id - the actual status and SAP_PO_NUMBER/SAP_PO_REVISION custom
- * fields are re-fetched from DocuSign's own API by DocusignEnvelopeCompletionService.
+ * envelope id - the actual status and folder/sub-folder custom fields
+ * (see DocusignEnvelopeCompletionService for the accepted field-name aliases)
+ * are re-fetched from DocuSign's own API by DocusignEnvelopeCompletionService.
  */
 @RestController
 @Profile("!mock & !sharepoint-test")

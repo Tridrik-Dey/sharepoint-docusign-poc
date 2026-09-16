@@ -67,7 +67,7 @@ public class DocusignClient {
         }
     }
 
-    /** Fetches the envelope's current status and custom fields (SAP_PO_NUMBER, SAP_PO_REVISION, ...). */
+    /** Fetches the envelope's current status and custom fields (SharePoint Folder, SharePoint Sub Folder, ...). */
     public EnvelopeStatusResult getEnvelopeWithCustomFields(String envelopeId) {
         try {
             EnvelopeDetailResponse response = docusignWebClient.get()

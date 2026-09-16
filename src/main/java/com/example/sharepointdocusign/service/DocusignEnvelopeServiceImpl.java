@@ -26,7 +26,7 @@ import java.util.List;
 /**
  * Real DocusignEnvelopeService: assembles the envelope definition (document
  * order, vendor signer, anchor-based SignHere tab on the main document only,
- * SAP custom fields) and delegates the HTTP call to DocusignClient. Inactive
+ * routing custom fields) and delegates the HTTP call to DocusignClient. Inactive
  * on "sharepoint-test" as well as "mock" - that profile pairs real SharePoint
  * retrieval with MockDocusignEnvelopeService, so no real DocuSign wiring
  * (and no DocuSign credentials) are needed.
@@ -40,6 +40,12 @@ public class DocusignEnvelopeServiceImpl implements DocusignEnvelopeService {
     private static final String ANCHOR_UNITS = "pixels";
     private static final String ANCHOR_X_OFFSET = "0";
     private static final String ANCHOR_Y_OFFSET = "-10";
+    // Canonical envelope custom field names this app stamps on creation and reads back
+    // on completion (see DocusignEnvelopeCompletionService). Kept as the English names;
+    // the completion side also accepts the Italian names and the old SAP_PO_* names so
+    // manually-created (Part B) envelopes using either still route correctly.
+    private static final String FOLDER_FIELD_NAME = "SharePoint Folder";
+    private static final String SUBFOLDER_FIELD_NAME = "SharePoint Sub Folder";
 
     private final DocusignClient docusignClient;
     private final boolean sendEnvelope;
@@ -99,8 +105,8 @@ public class DocusignEnvelopeServiceImpl implements DocusignEnvelopeService {
 
     private CustomFields buildCustomFields(String poNumber, String revision, String folderPath) {
         return new CustomFields(List.of(
-                new TextCustomField("SAP_PO_NUMBER", poNumber, "false"),
-                new TextCustomField("SAP_PO_REVISION", revision, "false"),
+                new TextCustomField(FOLDER_FIELD_NAME, poNumber, "false"),
+                new TextCustomField(SUBFOLDER_FIELD_NAME, revision, "false"),
                 new TextCustomField("SHAREPOINT_FOLDER_PATH", folderPath, "false")));
     }
 }

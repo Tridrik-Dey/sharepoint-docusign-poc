@@ -578,8 +578,11 @@ notification is authenticated via HMAC-SHA256 (`X-DocuSign-Signature-1`,
 means-open default. Nothing about the webhook payload's shape or content is
 trusted beyond the envelope id: this app calls back into DocuSign's own API
 (reusing the same JWT-grant credentials) to fetch the envelope's authoritative
-status and the `SAP_PO_NUMBER`/`SAP_PO_REVISION` custom fields already
-stamped on every envelope (see [section 13](#13-how-to-place-the-anchor-text-in-the-dummy-po)),
+status and the `SharePoint Folder`/`SharePoint Sub Folder` custom fields already
+stamped on every envelope (see [section 13](#13-how-to-place-the-anchor-text-in-the-dummy-po)) -
+the completion side also accepts the Italian names (`Cartella SharePoint`/
+`Sottocartella SharePoint`) and the original `SAP_PO_NUMBER`/`SAP_PO_REVISION`
+names, so an envelope created by hand using any of these still routes correctly,
 then downloads the combined signed document and stores it as
 `Signed-PO-{poNumber}-{revision}.pdf` in the same SharePoint folder the
 source documents came from - reusing the exact SharePoint-write path built

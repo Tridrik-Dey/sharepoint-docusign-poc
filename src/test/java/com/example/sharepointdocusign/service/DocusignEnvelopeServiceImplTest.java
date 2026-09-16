@@ -76,7 +76,7 @@ class DocusignEnvelopeServiceImplTest {
 
         List<TextCustomField> customFields = sentDefinition.customFields().textCustomFields();
         assertThat(customFields).extracting(TextCustomField::name)
-                .containsExactlyInAnyOrder("SAP_PO_NUMBER", "SAP_PO_REVISION", "SHAREPOINT_FOLDER_PATH");
+                .containsExactlyInAnyOrder("SharePoint Folder", "SharePoint Sub Folder", "SHAREPOINT_FOLDER_PATH");
         assertThat(customFields).filteredOn(f -> f.name().equals("SHAREPOINT_FOLDER_PATH"))
                 .extracting(TextCustomField::value)
                 .containsExactly("4500000105/02");
