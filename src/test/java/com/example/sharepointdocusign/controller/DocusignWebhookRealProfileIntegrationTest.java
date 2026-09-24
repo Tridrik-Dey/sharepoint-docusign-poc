@@ -28,6 +28,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.putRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
@@ -108,8 +109,10 @@ class DocusignWebhookRealProfileIntegrationTest {
                         .withHeader("Content-Type", "application/pdf")
                         .withBody(signedPdf)));
 
-        stubFor(put(urlEqualTo(
-                "/v1.0/drives/test-drive-id/root:/4500000105/02/Signed-PO-4500000105-02.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02:/children"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-signed\",\"name\":\"Signed-PO-4500000105-02.pdf\",\"file\":{}}")));
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/items/item-signed/content"))
                 .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
                         .withBody("{\"id\":\"item-signed\",\"name\":\"Signed-PO-4500000105-02.pdf\",\"size\":" + signedPdf.length + "}")));
 
@@ -125,8 +128,8 @@ class DocusignWebhookRealProfileIntegrationTest {
                 "http://localhost:" + port + "/webhooks/docusign/envelope-completed", request, Void.class);
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-        verify(putRequestedFor(urlEqualTo(
-                "/v1.0/drives/test-drive-id/root:/4500000105/02/Signed-PO-4500000105-02.pdf:/content?@microsoft.graph.conflictBehavior=rename")));
+        verify(postRequestedFor(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02:/children")));
+        verify(putRequestedFor(urlEqualTo("/v1.0/drives/test-drive-id/items/item-signed/content")));
     }
 
     private String sign(String body, String secret) throws Exception {

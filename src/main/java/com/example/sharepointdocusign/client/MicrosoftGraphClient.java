@@ -17,10 +17,8 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
-import org.springframework.web.util.UriUtils;
 
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -97,21 +95,51 @@ public class MicrosoftGraphClient {
      * on a name collision ({@code conflictBehavior=rename}) rather than this
      * app implementing its own versioning - the returned item's name reflects
      * whatever name was actually used.
+     *
+     * Implemented as two Graph calls rather than the single PUT-by-path upload
+     * (.../root:/{folderPath}/{fileName}:/content) because Graph's path-based
+     * addressing does not URL-decode that final path segment back into the
+     * real item name: a percent-encoded space (%20) - which any HTTP client
+     * MUST send, since a raw space is illegal in a request path - ends up
+     * stored verbatim in the file name instead of being interpreted as a
+     * space (confirmed against the live tenant). Creating the item first via
+     * a JSON request body sidesteps this entirely, since "name" there is a
+     * normal string with no URL-encoding involved, then the actual bytes are
+     * uploaded to that item by id (no file name anywhere in that URL).
      */
     public GraphDriveItem uploadContent(String folderPath, String fileName, byte[] content, String contentType) {
         try {
-            return putContent(folderPath, fileName, content, contentType);
+            return createThenUploadContent(folderPath, fileName, content, contentType);
         } catch (SharePointFolderNotFoundException notFound) {
             log.info("Target SharePoint folder '{}' does not exist yet - creating it before retrying the upload", folderPath);
             ensureFolderPath(folderPath);
-            return putContent(folderPath, fileName, content, contentType);
+            return createThenUploadContent(folderPath, fileName, content, contentType);
         }
     }
 
-    private GraphDriveItem putContent(String folderPath, String fileName, byte[] content, String contentType) {
-        String encodedFileName = UriUtils.encodePathSegment(fileName, StandardCharsets.UTF_8);
-        String uri = "/v1.0/drives/" + properties.sharepointDriveId() + "/root:/" + folderPath + "/" + encodedFileName
-                + ":/content?@microsoft.graph.conflictBehavior=rename";
+    private GraphDriveItem createThenUploadContent(String folderPath, String fileName, byte[] content, String contentType) {
+        GraphDriveItem placeholder = createFileItem(folderPath, fileName);
+        return putContentById(placeholder.id(), fileName, folderPath, content, contentType);
+    }
+
+    private GraphDriveItem createFileItem(String folderPath, String fileName) {
+        String childrenUri = "/v1.0/drives/" + properties.sharepointDriveId() + "/root:/" + folderPath + ":/children";
+        try {
+            return graphWebClient.post()
+                    .uri(childrenUri)
+                    .headers(headers -> headers.setBearerAuth(tokenService.getAccessToken()))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(new CreateFileRequest(fileName, Map.of(), "rename"))
+                    .retrieve()
+                    .bodyToMono(GraphDriveItem.class)
+                    .block();
+        } catch (WebClientResponseException e) {
+            throw mapGraphError(e, "create SharePoint file '" + fileName + "' in folder '" + folderPath + "'", true);
+        }
+    }
+
+    private GraphDriveItem putContentById(String itemId, String fileName, String folderPath, byte[] content, String contentType) {
+        String uri = "/v1.0/drives/" + properties.sharepointDriveId() + "/items/" + itemId + "/content";
         try {
             return graphWebClient.put()
                     .uri(uri)
@@ -234,6 +262,16 @@ public class MicrosoftGraphClient {
     private record CreateFolderRequest(
             String name,
             Map<String, Object> folder,
+            @JsonProperty("@microsoft.graph.conflictBehavior") String conflictBehavior) {
+    }
+
+    /**
+     * Body for Graph's "create an empty file" call (POST .../children), the
+     * first step of the two-call upload - see uploadContent's javadoc for why.
+     */
+    private record CreateFileRequest(
+            String name,
+            Map<String, Object> file,
             @JsonProperty("@microsoft.graph.conflictBehavior") String conflictBehavior) {
     }
 }

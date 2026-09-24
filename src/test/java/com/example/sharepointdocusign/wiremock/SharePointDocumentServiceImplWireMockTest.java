@@ -154,7 +154,10 @@ class SharePointDocumentServiceImplWireMockTest {
     @Test
     void uploadsDocumentEndToEndForNestedFolder() throws Exception {
         byte[] content = "%PDF-1.4\nnew-doc\n%%EOF".getBytes();
-        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02/New-Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02:/children"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-new\",\"name\":\"New-Doc.pdf\",\"file\":{}}")));
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/items/item-new/content"))
                 .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
                         .withBody("{\"id\":\"item-new\",\"name\":\"New-Doc.pdf\",\"size\":" + content.length + "}")));
 
@@ -169,7 +172,10 @@ class SharePointDocumentServiceImplWireMockTest {
     @Test
     void uploadsDocumentEndToEndForFlatFolder() throws Exception {
         byte[] content = "%PDF-1.4\nflat-doc\n%%EOF".getBytes();
-        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000233/New-Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000233:/children"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-flat\",\"name\":\"New-Doc.pdf\",\"file\":{}}")));
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/items/item-flat/content"))
                 .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
                         .withBody("{\"id\":\"item-flat\",\"name\":\"New-Doc.pdf\",\"size\":" + content.length + "}")));
 
@@ -182,7 +188,10 @@ class SharePointDocumentServiceImplWireMockTest {
     @Test
     void uploadReflectsGraphsAutoRenameAsRenamedTrue() {
         byte[] content = "%PDF-1.4\ncollide\n%%EOF".getBytes();
-        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02/Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000105/02:/children"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-renamed\",\"name\":\"Doc 1.pdf\",\"file\":{}}")));
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/items/item-renamed/content"))
                 .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
                         .withBody("{\"id\":\"item-renamed\",\"name\":\"Doc 1.pdf\",\"size\":" + content.length + "}")));
 
@@ -258,7 +267,10 @@ class SharePointDocumentServiceImplWireMockTest {
     @Test
     void uploadsDocumentEndToEndForAMultiLevelSubPath() throws Exception {
         byte[] content = "%PDF-1.4\nnested-doc\n%%EOF".getBytes();
-        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000233/A1/A2/A3/A4/New-Doc.pdf:/content?@microsoft.graph.conflictBehavior=rename"))
+        stubFor(post(urlEqualTo("/v1.0/drives/test-drive-id/root:/4500000233/A1/A2/A3/A4:/children"))
+                .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
+                        .withBody("{\"id\":\"item-nested\",\"name\":\"New-Doc.pdf\",\"file\":{}}")));
+        stubFor(put(urlEqualTo("/v1.0/drives/test-drive-id/items/item-nested/content"))
                 .willReturn(aResponse().withStatus(201).withHeader("Content-Type", "application/json")
                         .withBody("{\"id\":\"item-nested\",\"name\":\"New-Doc.pdf\",\"size\":" + content.length + "}")));
 
